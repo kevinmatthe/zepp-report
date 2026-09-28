@@ -11,7 +11,8 @@ import threading
 import time
 from urllib.parse import urlsplit
 from zoneinfo import ZoneInfo
-from fastapi import FastAPI, HTTPException, Request
+from typing import Literal
+from fastapi import FastAPI, HTTPException, Request, Query
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -21,6 +22,8 @@ from .store import Store
 from .sync import SyncService, dates
 from .normalize import KINDS
 from .metrics import metric_lines, json_lines
+from . import analytics
+from .coverage import coverage, preview
 
 
 class Login(BaseModel):
@@ -43,6 +46,7 @@ class SyncRequest(BaseModel):
     from_date: date | None = None
     to_date: date | None = None
     force: StrictBool = False
+    kinds: list[Literal['band','stress','training','trimp','sport','vo2','workouts']] | None = Field(default=None,min_length=1,max_length=7)
 
 
 def create_app(data_dir=None,environ=None,start_worker=True):
@@ -178,15 +182,69 @@ def create_app(data_dir=None,environ=None,start_worker=True):
         manual=body.from_date is not None
         today=datetime.now(ZoneInfo(cfg['timezone'])).date()
         start,end=validate_range(body.from_date or today-timedelta(days=cfg['lookback_days']-1),body.to_date or today,3650)
-        queued=store.enqueue(dates(start,end),KINDS,include_done=body.force or not manual)
+        queued=store.enqueue(dates(start,end),body.kinds or KINDS,include_done=body.force or not manual,reset_workouts=body.force)
         return {'queued':queued}
 
     @app.post('/api/retry')
-    def retry():
+    def retry(body:SyncRequest | None = None):
         if store.meta('auth_required',False):
             raise HTTPException(409,'请先更新已失效的 Zepp Token，然后继续回溯')
-        count=store.retry_failed()
+        start=end=None
+        if body and (body.from_date is not None or body.to_date is not None):
+            if body.from_date is None or body.to_date is None:
+                raise HTTPException(422,'开始和结束日期必须同时填写')
+            start,end=validate_range(body.from_date,body.to_date,3650)
+        count=store.retry_failed(start,end,body.kinds if body else None)
         return {'queued':count}
+
+    @app.post('/api/sync/preview')
+    def sync_preview(body:SyncRequest):
+        if body.from_date is None or body.to_date is None:
+            raise HTTPException(422,'请指定开始和结束日期')
+        start,end=validate_range(body.from_date,body.to_date,3650)
+        return preview(store,start,end,tuple(dict.fromkeys(body.kinds or KINDS)),body.force)
+
+    @app.get('/api/coverage')
+    def get_coverage(from_date:date,to_date:date,kind:Literal['band','stress','training','trimp','sport','vo2','workouts']|None=None):
+        if from_date>to_date or (to_date-from_date).days>=366 or from_date<date(1970,1,1):
+            raise HTTPException(422,'覆盖日历范围不能超过366天')
+        return coverage(store,from_date.isoformat(),to_date.isoformat(),settings.snapshot()['timezone'],kind,
+                        include_tasks=(to_date-from_date).days<31)
+
+    @app.get('/api/tasks')
+    def get_tasks(from_date:date,to_date:date,limit:int=Query(50,ge=1,le=200),offset:int=Query(0,ge=0),
+                  kind:Literal['band','stress','training','trimp','sport','vo2','workouts']|None=None,
+                  status:Literal['pending','running','failed','done']|None=None):
+        start,end=validate_range(from_date,to_date,3650)
+        where='day BETWEEN ? AND ?'; params=[start,end]
+        if kind:
+            where+=' AND kind=?'; params.append(kind)
+        if status:
+            where+=' AND status=?'; params.append(status)
+        with store.connect() as con:
+            total=con.execute('SELECT count(*) FROM tasks WHERE '+where,params).fetchone()[0]
+            items=[dict(r) for r in con.execute('SELECT * FROM tasks WHERE '+where+' ORDER BY day DESC,kind LIMIT ? OFFSET ?',params+[limit,offset])]
+        return {'tasks':items,'total':total,'limit':limit,'offset':offset}
+
+    @app.get('/api/analytics/trends')
+    def get_trends(from_date:date,to_date:date,compare:Literal['none','previous','year']='none',grain:Literal['day','week','month']='day'):
+        start,end=validate_range(from_date,to_date)
+        return analytics.trends(service.analytics,start,end,compare,grain)
+
+    @app.get('/api/analytics/profile')
+    def get_profile(from_date:date,to_date:date,metric:Literal['heart_rate','stress']='heart_rate'):
+        start,end=validate_range(from_date,to_date)
+        return analytics.profile(service.analytics,start,end,metric)
+
+    @app.get('/api/days/{day}')
+    def get_day(day:date):
+        start,_=validate_range(day,day)
+        return service.analytics.detail(start)
+
+    @app.get('/api/activities')
+    def get_activities(from_date:date,to_date:date,limit:int=Query(50,ge=1,le=200),offset:int=Query(0,ge=0),type:str|None=None,source:Literal['band_episode','workout']|None=None):
+        start,end=validate_range(from_date,to_date,366)
+        return service.analytics.activities(start,end,limit,offset,type,source)
 
     @app.get('/api/data')
     def data(from_date:date,to_date:date):

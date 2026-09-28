@@ -1,0 +1,17 @@
+{
+  "name": "zepp-report-ui",
+  "private": true,
+  "version": "2.0.0",
+  "scripts": {
+    "build": "node scripts/build-frontend.mjs",
+    "test:ui": "node tests/ui_state.cjs && node tests/ui_trends.cjs"
+  },
+  "dependencies": {
+    "echarts": "6.1.0",
+    "flatpickr": "4.6.13"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "@playwright/test": "1.63.0"
+  }
+}

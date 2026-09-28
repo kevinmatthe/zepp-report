@@ -8,3 +8,5 @@ data
 artifacts
 tests
 docs
+node_modules
+zepp_report/static/dist

@@ -9,7 +9,8 @@ from zoneinfo import ZoneInfo
 import requests
 from .client import AuthError, UpstreamError, ZeppClient
 from .normalize import KINDS, normalize
-from .metrics import metric_lines, sample_lines, json_lines
+from .analytics_store import AnalyticsStore
+from .metrics import metric_lines, sample_lines, json_lines, backfill_additional_metrics
 
 
 def dates(start,end):
@@ -25,6 +26,8 @@ class SyncService:
         self.stop_event=threading.Event()
         self.operation=threading.RLock()
         self.thread=None
+        self.analytics_thread=None
+        self.analytics=AnalyticsStore(store,settings.snapshot()['timezone'])
         self.lock_file=None
         self.next_flush=0
         self.vm_failures=0
@@ -65,7 +68,22 @@ class SyncService:
                 return False
             cfg=self.settings.snapshot()
             try:
-                raw=self.client_factory(cfg).fetch(task['kind'],task['day'])
+                client=self.client_factory(cfg)
+                if task['kind']=='workouts':
+                    checkpoint=self.store.workout_checkpoint(task['day']) or {}
+                    page=client.fetch_workout_page(task['day'],checkpoint.get('cursor'))
+                    self.store.archive_raw(task['day'],'workout_page',page)
+                    normalize('workouts',task['day'],page,cfg['timezone'])
+                    cursor=page['data']['next']
+                    if cursor!=-1:
+                        if cursor in checkpoint.get('seen',[]) or len(checkpoint.get('pages',[]))>=200:
+                            raise UpstreamError('运动分页未推进，已保留断点，请稍后重试')
+                        self.store.checkpoint_workout_page(task['day'],page,checkpoint)
+                        return True
+                    pages=checkpoint.get('pages',[])+[page]
+                    raw={'code':1,'data':{'next':-1,'summary':[r for p in pages for r in p['data']['summary']]},'_pages':pages}
+                else:
+                    raw=client.fetch(task['kind'],task['day'])
                 self.store.archive_raw(task['day'],task['kind'],raw)
                 data=normalize(task['kind'],task['day'],raw,cfg['timezone'])
                 lines=metric_lines(task['day'],data,self.settings.account,cfg['timezone'])
@@ -123,7 +141,7 @@ class SyncService:
         self.next_flush=0
 
     def status(self):
-        return dict(self.store.stats(), configured=self.settings.public()['configured'],
+        return dict(self.store.stats(), analytics=self.analytics.status(), configured=self.settings.public()['configured'],
             auth_required=self.store.meta('auth_required',False),
             worker_alive=bool(self.thread and self.thread.is_alive()),
             last_success=self.store.meta('last_success'),next_sync=self.store.meta('next_sync'),
@@ -149,6 +167,20 @@ class SyncService:
                 self.worker_error='后台处理失败，正在重试；请检查数据目录空间与权限'
                 self.stop_event.wait(5)
 
+    def run_analytics(self):
+        while not self.stop_event.is_set():
+            try:
+                self.analytics.timezone=self.settings.snapshot()['timezone']
+                worked=self.analytics.tick()
+                worked=backfill_additional_metrics(self.store,self.settings.account,self.analytics.timezone) or worked
+                self.stop_event.wait(.05 if worked else 2)
+            except Exception:
+                try:
+                    self.analytics.recover()
+                except Exception:
+                    pass
+                self.stop_event.wait(5)
+
     def start(self):
         self.lock_file=open(self.settings.directory/'worker.lock','a')
         try:
@@ -159,11 +191,15 @@ class SyncService:
         self.store.recover()
         self.thread=threading.Thread(target=self.run,name='zepp-sync',daemon=True)
         self.thread.start()
+        self.analytics_thread=threading.Thread(target=self.run_analytics,name='zepp-analytics',daemon=True)
+        self.analytics_thread.start()
 
     def stop(self):
         self.stop_event.set()
         if self.thread:
             self.thread.join(timeout=45)
+        if self.analytics_thread:
+            self.analytics_thread.join(timeout=10)
         # Do not release singleton lock while an in-flight worker still owns state.
         if self.lock_file and not (self.thread and self.thread.is_alive()):
             self.lock_file.close()

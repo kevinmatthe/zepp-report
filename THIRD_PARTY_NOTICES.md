@@ -28,3 +28,13 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+
+Additional API research references (independent implementation, no copied application code):
+
+- Workout cursor/source handling: https://github.com/rolandsz/Mi-Fit-and-Zepp-workout-exporter/blob/04bc0e28bf9ed7b77ed7251187396f5df3d6e881/src/api.py
+- Confirmed workout type codes: https://github.com/DhavalBhimani44/zepp-mcp/blob/9ba4f58ec19c300a74751386fc9a8d22aebbbfff/zepp_mcp/codes.py
+
+Frontend uses Apache ECharts, zrender, Flatpickr and tslib. Exact versions are
+locked in package-lock.json. Their licenses and notices are reproduced in the
+bundled static/dist/THIRD_PARTY_LICENSES.txt generated during the image build.

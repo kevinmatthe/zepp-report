@@ -24,6 +24,8 @@ def test_metrics_match_exporter_and_cover_all_health_domains():
     used = set()
     allowed = {f'zepp_{key}_{suffix}' for key in SUMMARY_KEYS for suffix in ('daily', 'current')}
     allowed |= OPS | {'zepp_heart_rate_bpm', 'zepp_stress'}
+    allowed |= {f'zepp_{domain}_type_minutes_{suffix}'
+                for domain in ('activity', 'workout') for suffix in ('daily', 'current')}
     for _, target in targets():
         names = set(re.findall(r'\bzepp_[a-z0-9_]+\b', target['expr']))
         assert names <= allowed, names - allowed
@@ -39,6 +41,8 @@ def test_sparse_daily_and_current_queries_have_bounded_freshness():
         expr = target['expr']
         if '_daily{' in expr:
             assert 'last_over_time(' in expr and '[1d]' in expr
+            assert 'tlast_over_time(' in expr
+            assert 'floor((time() + 28800) / 86400) * 86400 - 28800' in expr
             assert target['interval'] == '1d'
             assert target['utcOffsetSec'] == 28800
             assert panel['fieldConfig']['defaults']['custom']['spanNulls'] is False
@@ -82,3 +86,36 @@ def test_panels_have_unique_ids_and_nonoverlapping_layout():
         cells = {(x, y) for x in range(g['x'], g['x'] + g['w']) for y in range(g['y'], g['y'] + g['h'])}
         assert occupied.isdisjoint(cells)
         occupied |= cells
+
+
+def test_overview_prioritizes_activity_sleep_and_exercise():
+    data = dashboard()
+    assert data['uid'] == 'zepp-health'
+    hero = [p for p in data['panels'] if p['type'] == 'stat' and p['gridPos']['y'] < 10]
+    expressions = ' '.join(t['expr'] for p in hero for t in p['targets'])
+    for key in ('steps', 'actual_sleep_minutes', 'resting_hr', 'stress_avg', 'workout_minutes', 'workout_count'):
+        assert f'zepp_{key}_current' in expressions
+    assert all(p['gridPos']['h'] >= 5 for p in hero)
+    trend_panels = [p for p in data['panels'] if p['type'] == 'timeseries']
+    assert 'zepp_steps_daily' in trend_panels[0]['targets'][0]['expr']
+    assert 'zepp_actual_sleep_minutes_daily' in trend_panels[1]['targets'][0]['expr']
+
+
+def test_percentiles_are_explicit_rolling_windows_without_gap_filling():
+    percentile_panels = [p for p in dashboard()['panels'] if '分位' in p['title']]
+    assert len(percentile_panels) == 2
+    for panel in percentile_panels:
+        assert '24' in panel['title'] and '滚动' in panel['description']
+        expressions = ' '.join(t['expr'] for t in panel['targets'])
+        for quantile in ('0.1', '0.5', '0.9'):
+            assert f'quantile_over_time({quantile},' in expressions
+        assert '[24h]' in expressions
+        assert panel['fieldConfig']['defaults']['custom']['spanNulls'] is False
+
+
+def test_typed_duration_series_preserve_type_labels_and_freshness():
+    for domain in ('workout', 'activity'):
+        found = [t for _, t in targets() if f'zepp_{domain}_type_minutes_daily' in t['expr']]
+        assert len(found) == 1
+        assert '{{type}}' in found[0]['legendFormat']
+        assert 'tlast_over_time(' in found[0]['expr']

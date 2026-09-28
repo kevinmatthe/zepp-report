@@ -17,6 +17,9 @@ def setup(tmp_path):
 
 
 class Client:
+    def fetch_workout_page(self,day,cursor=None):
+        return {'code':1,'data':{'summary':[],'next':-1}}
+
     def fetch(self,kind,day):
         if kind=='band': return {'code':1,'data':[]}
         return {'items':[]}
@@ -35,7 +38,7 @@ def test_first_backfill_and_worker_store_empty_results(tmp_path):
     settings,store=setup(tmp_path)
     service=SyncService(settings,store,client_factory=lambda _:Client(),transport=VM())
     count=service.schedule()
-    assert count == 30*6
+    assert count == 30*7
     assert service.tick()
     assert store.stats()['tasks']['done']==1
 

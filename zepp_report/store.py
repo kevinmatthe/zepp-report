@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import sqlite3
 import time
+from .migrations import migrate
 
 
 def dump(value):
@@ -34,6 +35,7 @@ class Store:
                   updated_at REAL NOT NULL, PRIMARY KEY(day,kind));
                 CREATE TABLE IF NOT EXISTS metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL);
             ''')
+            migrate(con)
         os.chmod(self.path, 0o600)
 
     @contextmanager
@@ -74,7 +76,9 @@ class Store:
         with self.connect() as con:
             con.execute('INSERT OR IGNORE INTO raw_versions VALUES (?,?,?,?,?)',
                         (day,kind,hashlib.sha256(raw_json.encode()).hexdigest(),raw_json,now))
-            con.execute('INSERT OR REPLACE INTO records VALUES (?,?,?,?,?)',(day,kind,raw_json,dump(data),now))
+            con.execute('''INSERT INTO records VALUES (?,?,?,?,?) ON CONFLICT(day,kind)
+                DO UPDATE SET raw=excluded.raw,data=excluded.data,updated_at=excluded.updated_at''',
+                (day,kind,raw_json,dump(data),now))
             keys = set()
             for line in lines:
                 metric = dump(line['metric'])
@@ -99,9 +103,23 @@ class Store:
                         con.execute('UPDATE samples SET conflict=1 WHERE id=?',(old['id'],))
                     else:
                         con.execute('DELETE FROM samples WHERE id=?',(old['id'],))
+            if kind=='workouts':
+                con.execute('DELETE FROM metadata WHERE key=?',('workouts:'+day,))
             # Archive, outbox and completion checkpoint must survive as one transaction.
             con.execute("UPDATE tasks SET status='done',error=NULL,updated_at=? WHERE day=? AND kind=?",(now,day,kind))
             con.execute('INSERT OR REPLACE INTO metadata VALUES (?,?)',('last_success',dump(now)))
+
+    def workout_checkpoint(self,day):
+        return self.meta('workouts:'+day)
+
+    def checkpoint_workout_page(self,day,page,checkpoint):
+        checkpoint=dict(checkpoint)
+        checkpoint['pages']=checkpoint.get('pages',[])+[page]
+        checkpoint['cursor']=page['data']['next']
+        checkpoint['seen']=checkpoint.get('seen',[])+[page['data']['next']]
+        with self.connect() as con:
+            con.execute('INSERT OR REPLACE INTO metadata VALUES (?,?)',('workouts:'+day,dump(checkpoint)))
+            con.execute("UPDATE tasks SET status='pending',updated_at=? WHERE day=? AND kind='workouts'",(time.time(),day))
 
     def pending(self, limit=2000):
         with self.connect() as con:
@@ -128,13 +146,13 @@ class Store:
             day = days.setdefault(row['day'], {'date':row['day'],'summary':{},'heart_rate':[],'stress':[],'sleep_stages':[],'updated_at':0})
             data = json.loads(row['data'])
             day['summary'].update(data.get('summary',{}))
-            for key in ('heart_rate','stress','sleep_stages'):
+            for key in ('heart_rate','stress','sleep_stages','activity','workout_activity'):
                 if data.get(key):
                     day[key] = data[key]
             day['updated_at'] = max(day['updated_at'],row['updated_at'])
         return list(days.values())
 
-    def enqueue(self, days, kinds, include_done=True):
+    def enqueue(self, days, kinds, include_done=True, reset_workouts=False):
         now, count = time.time(), 0
         with self.connect() as con:
             for day in days:
@@ -143,6 +161,8 @@ class Store:
                       ON CONFLICT(day,kind) DO UPDATE SET status='pending',error=NULL,updated_at=excluded.updated_at
                       WHERE tasks.status='failed' OR (tasks.status='done' AND ?)''',(day,kind,now,int(include_done)))
                     count += cur.rowcount
+                    if cur.rowcount and reset_workouts and kind=='workouts':
+                        con.execute('DELETE FROM metadata WHERE key=?',('workouts:'+day,))
         return count
 
     def recover(self):
@@ -162,9 +182,16 @@ class Store:
             con.execute('UPDATE tasks SET status=?,error=?,updated_at=? WHERE day=? AND kind=?',
                         (status,error,time.time(),task['day'],task['kind']))
 
-    def retry_failed(self):
+    def retry_failed(self, start=None, end=None, kinds=None):
+        conditions, params = ["status='failed'"], []
+        if start is not None and end is not None:
+            conditions.append('day BETWEEN ? AND ?')
+            params.extend([start,end])
+        if kinds:
+            conditions.append('kind IN ('+','.join('?' for _ in kinds)+')')
+            params.extend(kinds)
         with self.connect() as con:
-            return con.execute("UPDATE tasks SET status='pending',error=NULL WHERE status='failed'").rowcount
+            return con.execute("UPDATE tasks SET status='pending',error=NULL WHERE "+' AND '.join(conditions),params).rowcount
 
     def resume_auth(self):
         with self.connect() as con:
@@ -183,4 +210,6 @@ class Store:
 
     def has_data(self):
         with self.connect() as con:
-            return con.execute('SELECT 1 FROM records LIMIT 1').fetchone() is not None
+            return (con.execute('SELECT 1 FROM records LIMIT 1').fetchone() is not None
+                    or con.execute('SELECT 1 FROM raw_versions LIMIT 1').fetchone() is not None
+                    or con.execute("SELECT 1 FROM metadata WHERE key LIKE 'workouts:%' LIMIT 1").fetchone() is not None)

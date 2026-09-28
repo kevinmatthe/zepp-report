@@ -5,7 +5,7 @@ import math
 from datetime import date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
-KINDS = ('band', 'stress', 'training', 'trimp', 'sport', 'vo2')
+KINDS = ('band', 'stress', 'training', 'trimp', 'sport', 'vo2', 'workouts')
 STAGES = {4: 'light', 5: 'deep', 7: 'awake', 8: 'rem'}
 
 
@@ -35,6 +35,9 @@ def copy_numbers(source, mapping, target):
 
 
 def normalize(kind, day, raw, timezone):
+    if kind == 'workouts':
+        from .workouts import normalize_workouts
+        return normalize_workouts(raw, day, timezone)
     low, high = day_bounds(day, timezone)
     result = {'summary': {}, 'heart_rate': [], 'stress': [], 'sleep_stages': []}
     summary = result['summary']
@@ -111,6 +114,17 @@ def normalize(kind, day, raw, timezone):
             elif kind == 'vo2':
                 # Upstream has no confirmed populated fixture. Preserve unknown schemas raw.
                 copy_numbers(row, {'vo2Max':'vo2_max'}, summary)
+    if kind == 'band':
+        from .activity import band_activity, activity_minutes, band_sleep_bounds
+        from .analytics import sleep_summary
+        extra,episodes=band_activity(raw,day,timezone)
+        summary.update(extra)
+        result['activities']=episodes
+        result['activity']=activity_minutes(episodes)
+        sleep=sleep_summary(result['sleep_stages'],timezone,band_sleep_bounds(raw,day,timezone))
+        # Keep existing VM sleep duration definitions stable; add identifiable sleep only.
+        if 'actual_sleep_minutes' in sleep:
+            summary['actual_sleep_minutes']=sleep['actual_sleep_minutes']
     for field in ('heart_rate', 'stress'):
         result[field] = [{'time': k, 'value': v} for k, v in sorted({x['time']: x['value'] for x in result[field]}.items())]
     return result

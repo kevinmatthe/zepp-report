@@ -1,14 +1,14 @@
 {
   "uid": "zepp-health",
   "title": "Zepp · 个人健康报告",
-  "description": "Zepp 历史健康、活动、睡眠与训练趋势；缺失保持为空。",
+  "description": "从每日步数、实际睡眠与运动概览，观察心率／压力分布和长期训练趋势。今日与历史分开呈现；缺失数据保持为空。",
   "tags": [
     "zepp",
     "health",
     "victoriametrics"
   ],
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "editable": true,
   "graphTooltip": 1,
   "timezone": "Asia/Shanghai",
@@ -64,7 +64,7 @@
   "panels": [
     {
       "id": 1,
-      "title": "ZEPP · 健康总览",
+      "title": "ZEPP / HEALTH TRENDS",
       "type": "text",
       "gridPos": {
         "x": 0,
@@ -75,7 +75,7 @@
       "description": "",
       "options": {
         "mode": "markdown",
-        "content": "### 每天的变化，清晰可见\n顶部为**今日最新快照**，下方为所选时间范围的历史记录。所有日界线采用 **Asia/Shanghai**。空白表示尚无有效记录，不代表零。睡眠按醒来日期归档；历史日报不混入当天累计值。"
+        "content": "## 读懂身体的长期变化\n**今日概览**与**历史趋势**，一眼看清。顶部卡片固定展示上海时间今日；下方图表跟随时间选择。空白表示缺少有效记录。"
       }
     },
     {
@@ -86,7 +86,7 @@
         "x": 0,
         "y": 3,
         "w": 4,
-        "h": 4
+        "h": 5
       },
       "description": "今日最新快照（上海时间）；不随历史时间选择器改变。跨日无新数据时留空。",
       "datasource": {
@@ -115,7 +115,7 @@
           "noValue": "暂无数据",
           "color": {
             "mode": "fixed",
-            "fixedColor": "blue"
+            "fixedColor": "green"
           },
           "mappings": []
         },
@@ -133,18 +133,22 @@
         "textMode": "auto",
         "colorMode": "value",
         "graphMode": "none",
-        "justifyMode": "auto"
+        "justifyMode": "center",
+        "text": {
+          "valueSize": 38,
+          "titleSize": 14
+        }
       }
     },
     {
       "id": 3,
-      "title": "今日距离",
+      "title": "实际睡眠",
       "type": "stat",
       "gridPos": {
         "x": 4,
         "y": 3,
         "w": 4,
-        "h": 4
+        "h": 5
       },
       "description": "今日最新快照（上海时间）；不随历史时间选择器改变。跨日无新数据时留空。",
       "datasource": {
@@ -157,8 +161,8 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "${DS_VICTORIAMETRICS}"
           },
-          "expr": "last_over_time(zepp_distance_meters_current{account=~\"${account:regex}\"}[1d] @ now()) and (tlast_over_time(zepp_distance_meters_current{account=~\"${account:regex}\"}[1d] @ now()) >= floor((now() + 28800) / 86400) * 86400 - 28800)",
-          "legendFormat": "今日距离",
+          "expr": "last_over_time(zepp_actual_sleep_minutes_current{account=~\"${account:regex}\"}[1d] @ now()) and (tlast_over_time(zepp_actual_sleep_minutes_current{account=~\"${account:regex}\"}[1d] @ now()) >= floor((now() + 28800) / 86400) * 86400 - 28800)",
+          "legendFormat": "实际睡眠",
           "refId": "A",
           "editorMode": "code",
           "instant": true,
@@ -168,12 +172,12 @@
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "lengthm",
+          "unit": "m",
           "decimals": 0,
           "noValue": "暂无数据",
           "color": {
             "mode": "fixed",
-            "fixedColor": "blue"
+            "fixedColor": "purple"
           },
           "mappings": []
         },
@@ -191,134 +195,22 @@
         "textMode": "auto",
         "colorMode": "value",
         "graphMode": "none",
-        "justifyMode": "auto"
+        "justifyMode": "center",
+        "text": {
+          "valueSize": 38,
+          "titleSize": 14
+        }
       }
     },
     {
       "id": 4,
-      "title": "今日热量",
+      "title": "静息心率",
       "type": "stat",
       "gridPos": {
         "x": 8,
         "y": 3,
         "w": 4,
-        "h": 4
-      },
-      "description": "今日最新快照（上海时间）；不随历史时间选择器改变。跨日无新数据时留空。",
-      "datasource": {
-        "type": "victoriametrics-metrics-datasource",
-        "uid": "${DS_VICTORIAMETRICS}"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "victoriametrics-metrics-datasource",
-            "uid": "${DS_VICTORIAMETRICS}"
-          },
-          "expr": "last_over_time(zepp_calories_current{account=~\"${account:regex}\"}[1d] @ now()) and (tlast_over_time(zepp_calories_current{account=~\"${account:regex}\"}[1d] @ now()) >= floor((now() + 28800) / 86400) * 86400 - 28800)",
-          "legendFormat": "今日热量",
-          "refId": "A",
-          "editorMode": "code",
-          "instant": true,
-          "range": false,
-          "format": "time_series"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "suffix:kcal",
-          "decimals": 0,
-          "noValue": "暂无数据",
-          "color": {
-            "mode": "fixed",
-            "fixedColor": "blue"
-          },
-          "mappings": []
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "values": false,
-          "calcs": [
-            "last"
-          ],
-          "fields": ""
-        },
-        "orientation": "auto",
-        "textMode": "auto",
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "auto"
-      }
-    },
-    {
-      "id": 5,
-      "title": "今日睡眠评分",
-      "type": "stat",
-      "gridPos": {
-        "x": 12,
-        "y": 3,
-        "w": 4,
-        "h": 4
-      },
-      "description": "今日最新快照（上海时间）；不随历史时间选择器改变。跨日无新数据时留空。",
-      "datasource": {
-        "type": "victoriametrics-metrics-datasource",
-        "uid": "${DS_VICTORIAMETRICS}"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "victoriametrics-metrics-datasource",
-            "uid": "${DS_VICTORIAMETRICS}"
-          },
-          "expr": "last_over_time(zepp_sleep_score_current{account=~\"${account:regex}\"}[1d] @ now()) and (tlast_over_time(zepp_sleep_score_current{account=~\"${account:regex}\"}[1d] @ now()) >= floor((now() + 28800) / 86400) * 86400 - 28800)",
-          "legendFormat": "今日睡眠评分",
-          "refId": "A",
-          "editorMode": "code",
-          "instant": true,
-          "range": false,
-          "format": "time_series"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "decimals": 0,
-          "noValue": "暂无数据",
-          "color": {
-            "mode": "fixed",
-            "fixedColor": "blue"
-          },
-          "mappings": []
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "values": false,
-          "calcs": [
-            "last"
-          ],
-          "fields": ""
-        },
-        "orientation": "auto",
-        "textMode": "auto",
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "auto"
-      }
-    },
-    {
-      "id": 6,
-      "title": "今日静息心率",
-      "type": "stat",
-      "gridPos": {
-        "x": 16,
-        "y": 3,
-        "w": 4,
-        "h": 4
+        "h": 5
       },
       "description": "今日最新快照（上海时间）；不随历史时间选择器改变。跨日无新数据时留空。",
       "datasource": {
@@ -332,7 +224,7 @@
             "uid": "${DS_VICTORIAMETRICS}"
           },
           "expr": "last_over_time(zepp_resting_hr_current{account=~\"${account:regex}\"}[1d] @ now()) and (tlast_over_time(zepp_resting_hr_current{account=~\"${account:regex}\"}[1d] @ now()) >= floor((now() + 28800) / 86400) * 86400 - 28800)",
-          "legendFormat": "今日静息心率",
+          "legendFormat": "静息心率",
           "refId": "A",
           "editorMode": "code",
           "instant": true,
@@ -342,12 +234,12 @@
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "suffix:bpm",
+          "unit": "bpm",
           "decimals": 0,
           "noValue": "暂无数据",
           "color": {
             "mode": "fixed",
-            "fixedColor": "blue"
+            "fixedColor": "red"
           },
           "mappings": []
         },
@@ -365,18 +257,22 @@
         "textMode": "auto",
         "colorMode": "value",
         "graphMode": "none",
-        "justifyMode": "auto"
+        "justifyMode": "center",
+        "text": {
+          "valueSize": 38,
+          "titleSize": 14
+        }
       }
     },
     {
-      "id": 7,
-      "title": "今日平均压力",
+      "id": 5,
+      "title": "平均压力",
       "type": "stat",
       "gridPos": {
-        "x": 20,
+        "x": 12,
         "y": 3,
         "w": 4,
-        "h": 4
+        "h": 5
       },
       "description": "今日最新快照（上海时间）；不随历史时间选择器改变。跨日无新数据时留空。",
       "datasource": {
@@ -390,7 +286,7 @@
             "uid": "${DS_VICTORIAMETRICS}"
           },
           "expr": "last_over_time(zepp_stress_avg_current{account=~\"${account:regex}\"}[1d] @ now()) and (tlast_over_time(zepp_stress_avg_current{account=~\"${account:regex}\"}[1d] @ now()) >= floor((now() + 28800) / 86400) * 86400 - 28800)",
-          "legendFormat": "今日平均压力",
+          "legendFormat": "平均压力",
           "refId": "A",
           "editorMode": "code",
           "instant": true,
@@ -401,6 +297,68 @@
       "fieldConfig": {
         "defaults": {
           "unit": "short",
+          "decimals": 0,
+          "noValue": "暂无数据",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "orange"
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "last"
+          ],
+          "fields": ""
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "text": {
+          "valueSize": 38,
+          "titleSize": 14
+        }
+      }
+    },
+    {
+      "id": 6,
+      "title": "运动时长",
+      "type": "stat",
+      "gridPos": {
+        "x": 16,
+        "y": 3,
+        "w": 4,
+        "h": 5
+      },
+      "description": "今日最新快照（上海时间）；不随历史时间选择器改变。跨日无新数据时留空。",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "${DS_VICTORIAMETRICS}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "${DS_VICTORIAMETRICS}"
+          },
+          "expr": "last_over_time(zepp_workout_minutes_current{account=~\"${account:regex}\"}[1d] @ now()) and (tlast_over_time(zepp_workout_minutes_current{account=~\"${account:regex}\"}[1d] @ now()) >= floor((now() + 28800) / 86400) * 86400 - 28800)",
+          "legendFormat": "运动时长",
+          "refId": "A",
+          "editorMode": "code",
+          "instant": true,
+          "range": false,
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "m",
           "decimals": 0,
           "noValue": "暂无数据",
           "color": {
@@ -423,54 +381,135 @@
         "textMode": "auto",
         "colorMode": "value",
         "graphMode": "none",
-        "justifyMode": "auto"
+        "justifyMode": "center",
+        "text": {
+          "valueSize": 38,
+          "titleSize": 14
+        }
       }
     },
     {
-      "id": 8,
-      "title": "心率 · 实测记录",
-      "type": "timeseries",
+      "id": 7,
+      "title": "运动次数",
+      "type": "stat",
       "gridPos": {
-        "x": 0,
-        "y": 7,
-        "w": 12,
-        "h": 8
+        "x": 20,
+        "y": 3,
+        "w": 4,
+        "h": 5
       },
-      "description": "设备实测值，查询点仅回看 5 分钟；不会用很早的读数填满长时间空白。放大到单日可查看细节。",
+      "description": "今日最新快照（上海时间）；不随历史时间选择器改变。跨日无新数据时留空。",
       "datasource": {
         "type": "victoriametrics-metrics-datasource",
         "uid": "${DS_VICTORIAMETRICS}"
       },
-      "interval": "1m",
-      "maxDataPoints": 1500,
       "targets": [
         {
           "datasource": {
             "type": "victoriametrics-metrics-datasource",
             "uid": "${DS_VICTORIAMETRICS}"
           },
-          "expr": "last_over_time(zepp_heart_rate_bpm{account=~\"${account:regex}\"}[5m])",
-          "legendFormat": "心率 · 实测记录",
+          "expr": "last_over_time(zepp_workout_count_current{account=~\"${account:regex}\"}[1d] @ now()) and (tlast_over_time(zepp_workout_count_current{account=~\"${account:regex}\"}[1d] @ now()) >= floor((now() + 28800) / 86400) * 86400 - 28800)",
+          "legendFormat": "运动次数",
           "refId": "A",
           "editorMode": "code",
-          "instant": false,
-          "range": true,
+          "instant": true,
+          "range": false,
           "format": "time_series"
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "suffix:bpm",
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "暂无数据",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "cyan"
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "last"
+          ],
+          "fields": ""
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "text": {
+          "valueSize": 38,
+          "titleSize": 14
+        }
+      }
+    },
+    {
+      "title": "01 / 每日趋势 · 活动与恢复",
+      "type": "row",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 24,
+        "h": 1
+      },
+      "id": 8
+    },
+    {
+      "id": 9,
+      "title": "日常活动 · 步数",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 9,
+        "w": 12,
+        "h": 9
+      },
+      "description": "历史每日汇总，按 Asia/Shanghai 零点归档。缺失不补零、不跨日延续；当天请查看顶部快照。",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "${DS_VICTORIAMETRICS}"
+      },
+      "interval": "1d",
+      "maxDataPoints": 10000,
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "${DS_VICTORIAMETRICS}"
+          },
+          "expr": "last_over_time(zepp_steps_daily{account=~\"${account:regex}\"}[1d]) and (tlast_over_time(zepp_steps_daily{account=~\"${account:regex}\"}[1d]) >= floor((time() + 28800) / 86400) * 86400 - 28800)",
+          "legendFormat": "步数",
+          "refId": "A",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "format": "time_series",
+          "interval": "1d",
+          "utcOffsetSec": 28800
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
           "noValue": "暂无数据",
           "color": {
             "mode": "palette-classic"
           },
           "custom": {
-            "drawStyle": "line",
+            "drawStyle": "bars",
             "lineInterpolation": "linear",
-            "lineWidth": 2,
-            "fillOpacity": 8,
-            "showPoints": "always",
+            "lineWidth": 0,
+            "fillOpacity": 45,
+            "showPoints": "auto",
             "pointSize": 4,
             "spanNulls": false,
             "insertNulls": false,
@@ -488,7 +527,8 @@
               "legend": false,
               "tooltip": false,
               "viz": false
-            }
+            },
+            "axisBorderShow": false
           }
         },
         "overrides": []
@@ -496,45 +536,339 @@
       "options": {
         "tooltip": {
           "mode": "multi",
-          "sort": "none"
+          "sort": "desc"
         },
         "legend": {
           "displayMode": "list",
           "placement": "bottom",
-          "showLegend": true
+          "showLegend": true,
+          "calcs": []
         }
       }
     },
     {
-      "id": 9,
-      "title": "压力 · 实测记录",
+      "id": 10,
+      "title": "睡眠 · 实际睡眠与总时长",
       "type": "timeseries",
       "gridPos": {
         "x": 12,
-        "y": 7,
+        "y": 9,
         "w": 12,
-        "h": 8
+        "h": 9
       },
-      "description": "设备实测值，查询点仅回看 5 分钟；不会用很早的读数填满长时间空白。放大到单日可查看细节。",
+      "description": "历史每日汇总，按 Asia/Shanghai 零点归档。缺失不补零、不跨日延续；当天请查看顶部快照。",
       "datasource": {
         "type": "victoriametrics-metrics-datasource",
         "uid": "${DS_VICTORIAMETRICS}"
       },
-      "interval": "1m",
-      "maxDataPoints": 1500,
+      "interval": "1d",
+      "maxDataPoints": 10000,
       "targets": [
         {
           "datasource": {
             "type": "victoriametrics-metrics-datasource",
             "uid": "${DS_VICTORIAMETRICS}"
           },
-          "expr": "last_over_time(zepp_stress{account=~\"${account:regex}\"}[5m])",
-          "legendFormat": "压力 · 实测记录",
+          "expr": "last_over_time(zepp_actual_sleep_minutes_daily{account=~\"${account:regex}\"}[1d]) and (tlast_over_time(zepp_actual_sleep_minutes_daily{account=~\"${account:regex}\"}[1d]) >= floor((time() + 28800) / 86400) * 86400 - 28800)",
+          "legendFormat": "实际睡眠",
           "refId": "A",
           "editorMode": "code",
           "instant": false,
           "range": true,
-          "format": "time_series"
+          "format": "time_series",
+          "interval": "1d",
+          "utcOffsetSec": 28800
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "${DS_VICTORIAMETRICS}"
+          },
+          "expr": "last_over_time(zepp_sleep_minutes_daily{account=~\"${account:regex}\"}[1d]) and (tlast_over_time(zepp_sleep_minutes_daily{account=~\"${account:regex}\"}[1d]) >= floor((time() + 28800) / 86400) * 86400 - 28800)",
+          "legendFormat": "总时长（含清醒）",
+          "refId": "B",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "format": "time_series",
+          "interval": "1d",
+          "utcOffsetSec": 28800
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "m",
+          "noValue": "暂无数据",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "auto",
+            "pointSize": 4,
+            "spanNulls": false,
+            "insertNulls": false,
+            "barAlignment": 0,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "axisBorderShow": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        }
+      }
+    },
+    {
+      "id": 11,
+      "title": "心率 · 滚动 24 小时分位",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 18,
+        "w": 12,
+        "h": 9
+      },
+      "description": "每个时间点回看滚动 24 小时的设备观测，展示 P10 / P50（中位数）/ P90；不是自然日统计，也不是医学诊断。窗口内无观测时留空，少量观测仍可能产生分位数。",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "${DS_VICTORIAMETRICS}"
+      },
+      "maxDataPoints": 1000,
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "${DS_VICTORIAMETRICS}"
+          },
+          "expr": "quantile_over_time(0.1, zepp_heart_rate_bpm{account=~\"${account:regex}\"}[24h])",
+          "legendFormat": "P10",
+          "refId": "A",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "format": "time_series",
+          "interval": "1h"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "${DS_VICTORIAMETRICS}"
+          },
+          "expr": "quantile_over_time(0.5, zepp_heart_rate_bpm{account=~\"${account:regex}\"}[24h])",
+          "legendFormat": "P50 · 中位数",
+          "refId": "B",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "format": "time_series",
+          "interval": "1h"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "${DS_VICTORIAMETRICS}"
+          },
+          "expr": "quantile_over_time(0.9, zepp_heart_rate_bpm{account=~\"${account:regex}\"}[24h])",
+          "legendFormat": "P90",
+          "refId": "C",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "format": "time_series",
+          "interval": "1h"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bpm",
+          "noValue": "暂无数据",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "auto",
+            "pointSize": 4,
+            "spanNulls": false,
+            "insertNulls": false,
+            "barAlignment": 0,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "axisBorderShow": false
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "P10"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "light-blue"
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 1
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "P50 · 中位数"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 3
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "P90"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "purple"
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 1
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        }
+      }
+    },
+    {
+      "id": 12,
+      "title": "压力 · 滚动 24 小时分位",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 12,
+        "y": 18,
+        "w": 12,
+        "h": 9
+      },
+      "description": "每个时间点回看滚动 24 小时的设备观测，展示 P10 / P50（中位数）/ P90；不是自然日统计，也不是医学诊断。窗口内无观测时留空，少量观测仍可能产生分位数。",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "${DS_VICTORIAMETRICS}"
+      },
+      "maxDataPoints": 1000,
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "${DS_VICTORIAMETRICS}"
+          },
+          "expr": "quantile_over_time(0.1, zepp_stress{account=~\"${account:regex}\"}[24h])",
+          "legendFormat": "P10",
+          "refId": "A",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "format": "time_series",
+          "interval": "1h"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "${DS_VICTORIAMETRICS}"
+          },
+          "expr": "quantile_over_time(0.5, zepp_stress{account=~\"${account:regex}\"}[24h])",
+          "legendFormat": "P50 · 中位数",
+          "refId": "B",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "format": "time_series",
+          "interval": "1h"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "${DS_VICTORIAMETRICS}"
+          },
+          "expr": "quantile_over_time(0.9, zepp_stress{account=~\"${account:regex}\"}[24h])",
+          "legendFormat": "P90",
+          "refId": "C",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "format": "time_series",
+          "interval": "1h"
         }
       ],
       "fieldConfig": {
@@ -548,8 +882,8 @@
             "drawStyle": "line",
             "lineInterpolation": "linear",
             "lineWidth": 2,
-            "fillOpacity": 8,
-            "showPoints": "always",
+            "fillOpacity": 10,
+            "showPoints": "auto",
             "pointSize": 4,
             "spanNulls": false,
             "insertNulls": false,
@@ -567,30 +901,225 @@
               "legend": false,
               "tooltip": false,
               "viz": false
-            }
+            },
+            "axisBorderShow": false
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "P10"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "light-blue"
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 1
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "P50 · 中位数"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 3
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "P90"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "purple"
+                }
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 1
+              }
+            ]
+          }
+        ]
       },
       "options": {
         "tooltip": {
           "mode": "multi",
-          "sort": "none"
+          "sort": "desc"
         },
         "legend": {
           "displayMode": "list",
           "placement": "bottom",
-          "showLegend": true
+          "showLegend": true,
+          "calcs": []
         }
       }
     },
     {
-      "id": 10,
-      "title": "睡眠 · 总时长",
+      "id": 13,
+      "title": "静息心率与平均压力",
       "type": "timeseries",
       "gridPos": {
         "x": 0,
-        "y": 15,
+        "y": 27,
+        "w": 12,
+        "h": 8
+      },
+      "description": "历史每日汇总，按 Asia/Shanghai 零点归档。缺失不补零、不跨日延续；当天请查看顶部快照。 静息心率使用左轴 bpm；压力使用右轴设备评分，两者单位不同。",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "${DS_VICTORIAMETRICS}"
+      },
+      "interval": "1d",
+      "maxDataPoints": 10000,
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "${DS_VICTORIAMETRICS}"
+          },
+          "expr": "last_over_time(zepp_resting_hr_daily{account=~\"${account:regex}\"}[1d]) and (tlast_over_time(zepp_resting_hr_daily{account=~\"${account:regex}\"}[1d]) >= floor((time() + 28800) / 86400) * 86400 - 28800)",
+          "legendFormat": "静息心率 (bpm)",
+          "refId": "A",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "format": "time_series",
+          "interval": "1d",
+          "utcOffsetSec": 28800
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "${DS_VICTORIAMETRICS}"
+          },
+          "expr": "last_over_time(zepp_stress_avg_daily{account=~\"${account:regex}\"}[1d]) and (tlast_over_time(zepp_stress_avg_daily{account=~\"${account:regex}\"}[1d]) >= floor((time() + 28800) / 86400) * 86400 - 28800)",
+          "legendFormat": "平均压力",
+          "refId": "B",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "format": "time_series",
+          "interval": "1d",
+          "utcOffsetSec": 28800
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "暂无数据",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "auto",
+            "pointSize": 4,
+            "spanNulls": false,
+            "insertNulls": false,
+            "barAlignment": 0,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "axisBorderShow": false
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "静息心率 (bpm)"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bpm"
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "left"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "平均压力"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              },
+              {
+                "id": "custom.axisLabel",
+                "value": "压力评分"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        }
+      }
+    },
+    {
+      "id": 14,
+      "title": "睡眠 · 评分",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 12,
+        "y": 27,
         "w": 12,
         "h": 8
       },
@@ -607,8 +1136,202 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "${DS_VICTORIAMETRICS}"
           },
-          "expr": "last_over_time(zepp_sleep_minutes_daily{account=~\"${account:regex}\"}[1d]) and (tlast_over_time(zepp_sleep_minutes_daily{account=~\"${account:regex}\"}[1d]) >= floor((time() + 28800) / 86400) * 86400 - 28800)",
-          "legendFormat": "睡眠时长",
+          "expr": "last_over_time(zepp_sleep_score_daily{account=~\"${account:regex}\"}[1d]) and (tlast_over_time(zepp_sleep_score_daily{account=~\"${account:regex}\"}[1d]) >= floor((time() + 28800) / 86400) * 86400 - 28800)",
+          "legendFormat": "睡眠评分",
+          "refId": "A",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "format": "time_series",
+          "interval": "1d",
+          "utcOffsetSec": 28800
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "暂无数据",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "auto",
+            "pointSize": 4,
+            "spanNulls": false,
+            "insertNulls": false,
+            "barAlignment": 0,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "axisBorderShow": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        }
+      }
+    },
+    {
+      "title": "02 / 活动构成 · 步行、跑步与运动",
+      "type": "row",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 35,
+        "w": 24,
+        "h": 1
+      },
+      "id": 15
+    },
+    {
+      "id": 16,
+      "title": "日常活动 · 步行与跑步时长",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 36,
+        "w": 8,
+        "h": 8
+      },
+      "description": "历史每日汇总，按 Asia/Shanghai 零点归档。缺失不补零、不跨日延续；当天请查看顶部快照。",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "${DS_VICTORIAMETRICS}"
+      },
+      "interval": "1d",
+      "maxDataPoints": 10000,
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "${DS_VICTORIAMETRICS}"
+          },
+          "expr": "last_over_time(zepp_walking_minutes_daily{account=~\"${account:regex}\"}[1d]) and (tlast_over_time(zepp_walking_minutes_daily{account=~\"${account:regex}\"}[1d]) >= floor((time() + 28800) / 86400) * 86400 - 28800)",
+          "legendFormat": "步行",
+          "refId": "A",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "format": "time_series",
+          "interval": "1d",
+          "utcOffsetSec": 28800
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "${DS_VICTORIAMETRICS}"
+          },
+          "expr": "last_over_time(zepp_running_minutes_daily{account=~\"${account:regex}\"}[1d]) and (tlast_over_time(zepp_running_minutes_daily{account=~\"${account:regex}\"}[1d]) >= floor((time() + 28800) / 86400) * 86400 - 28800)",
+          "legendFormat": "跑步",
+          "refId": "B",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "format": "time_series",
+          "interval": "1d",
+          "utcOffsetSec": 28800
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "m",
+          "noValue": "暂无数据",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "bars",
+            "lineInterpolation": "linear",
+            "lineWidth": 0,
+            "fillOpacity": 45,
+            "showPoints": "auto",
+            "pointSize": 4,
+            "spanNulls": false,
+            "insertNulls": false,
+            "barAlignment": 0,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "axisBorderShow": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        }
+      }
+    },
+    {
+      "id": 17,
+      "title": "运动 · 每日时长",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 8,
+        "y": 36,
+        "w": 8,
+        "h": 8
+      },
+      "description": "历史每日汇总，按 Asia/Shanghai 零点归档。缺失不补零、不跨日延续；当天请查看顶部快照。",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "${DS_VICTORIAMETRICS}"
+      },
+      "interval": "1d",
+      "maxDataPoints": 10000,
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "${DS_VICTORIAMETRICS}"
+          },
+          "expr": "last_over_time(zepp_workout_minutes_daily{account=~\"${account:regex}\"}[1d]) and (tlast_over_time(zepp_workout_minutes_daily{account=~\"${account:regex}\"}[1d]) >= floor((time() + 28800) / 86400) * 86400 - 28800)",
+          "legendFormat": "运动时长",
           "refId": "A",
           "editorMode": "code",
           "instant": false,
@@ -629,8 +1352,8 @@
             "drawStyle": "bars",
             "lineInterpolation": "linear",
             "lineWidth": 0,
-            "fillOpacity": 75,
-            "showPoints": "always",
+            "fillOpacity": 45,
+            "showPoints": "auto",
             "pointSize": 4,
             "spanNulls": false,
             "insertNulls": false,
@@ -648,7 +1371,8 @@
               "legend": false,
               "tooltip": false,
               "viz": false
-            }
+            },
+            "axisBorderShow": false
           }
         },
         "overrides": []
@@ -656,23 +1380,535 @@
       "options": {
         "tooltip": {
           "mode": "multi",
-          "sort": "none"
+          "sort": "desc"
         },
         "legend": {
           "displayMode": "list",
           "placement": "bottom",
-          "showLegend": true
+          "showLegend": true,
+          "calcs": []
         }
       }
     },
     {
-      "id": 11,
-      "title": "睡眠 · 阶段时长",
+      "id": 18,
+      "title": "运动 · 每日次数",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 16,
+        "y": 36,
+        "w": 8,
+        "h": 8
+      },
+      "description": "历史每日汇总，按 Asia/Shanghai 零点归档。缺失不补零、不跨日延续；当天请查看顶部快照。",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "${DS_VICTORIAMETRICS}"
+      },
+      "interval": "1d",
+      "maxDataPoints": 10000,
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "${DS_VICTORIAMETRICS}"
+          },
+          "expr": "last_over_time(zepp_workout_count_daily{account=~\"${account:regex}\"}[1d]) and (tlast_over_time(zepp_workout_count_daily{account=~\"${account:regex}\"}[1d]) >= floor((time() + 28800) / 86400) * 86400 - 28800)",
+          "legendFormat": "运动次数",
+          "refId": "A",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "format": "time_series",
+          "interval": "1d",
+          "utcOffsetSec": 28800
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "暂无数据",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "bars",
+            "lineInterpolation": "linear",
+            "lineWidth": 0,
+            "fillOpacity": 45,
+            "showPoints": "auto",
+            "pointSize": 4,
+            "spanNulls": false,
+            "insertNulls": false,
+            "barAlignment": 0,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "axisBorderShow": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        }
+      }
+    },
+    {
+      "id": 19,
+      "title": "日常活动 · 类型时长",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 44,
+        "w": 12,
+        "h": 8
+      },
+      "description": "历史每日汇总，按 Asia/Shanghai 零点归档。缺失不补零、不跨日延续；当天请查看顶部快照。 类型显示导出标签；未知类型保留原始代码，零值不代表已记录的全部类型。",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "${DS_VICTORIAMETRICS}"
+      },
+      "interval": "1d",
+      "maxDataPoints": 10000,
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "${DS_VICTORIAMETRICS}"
+          },
+          "expr": "last_over_time(zepp_activity_type_minutes_daily{account=~\"${account:regex}\"}[1d]) and (tlast_over_time(zepp_activity_type_minutes_daily{account=~\"${account:regex}\"}[1d]) >= floor((time() + 28800) / 86400) * 86400 - 28800)",
+          "legendFormat": "{{type}}",
+          "refId": "A",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "format": "time_series",
+          "interval": "1d",
+          "utcOffsetSec": 28800
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "m",
+          "noValue": "暂无数据",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "bars",
+            "lineInterpolation": "linear",
+            "lineWidth": 0,
+            "fillOpacity": 45,
+            "showPoints": "auto",
+            "pointSize": 4,
+            "spanNulls": false,
+            "insertNulls": false,
+            "barAlignment": 0,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "axisBorderShow": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        }
+      }
+    },
+    {
+      "id": 20,
+      "title": "运动 · 类型时长",
       "type": "timeseries",
       "gridPos": {
         "x": 12,
-        "y": 15,
+        "y": 44,
         "w": 12,
+        "h": 8
+      },
+      "description": "历史每日汇总，按 Asia/Shanghai 零点归档。缺失不补零、不跨日延续；当天请查看顶部快照。 类型显示导出标签；未知类型保留原始代码，零值不代表已记录的全部类型。",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "${DS_VICTORIAMETRICS}"
+      },
+      "interval": "1d",
+      "maxDataPoints": 10000,
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "${DS_VICTORIAMETRICS}"
+          },
+          "expr": "last_over_time(zepp_workout_type_minutes_daily{account=~\"${account:regex}\"}[1d]) and (tlast_over_time(zepp_workout_type_minutes_daily{account=~\"${account:regex}\"}[1d]) >= floor((time() + 28800) / 86400) * 86400 - 28800)",
+          "legendFormat": "{{type}}",
+          "refId": "A",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "format": "time_series",
+          "interval": "1d",
+          "utcOffsetSec": 28800
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "m",
+          "noValue": "暂无数据",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "bars",
+            "lineInterpolation": "linear",
+            "lineWidth": 0,
+            "fillOpacity": 45,
+            "showPoints": "auto",
+            "pointSize": 4,
+            "spanNulls": false,
+            "insertNulls": false,
+            "barAlignment": 0,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "axisBorderShow": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        }
+      }
+    },
+    {
+      "id": 21,
+      "title": "日常活动 · 距离",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 52,
+        "w": 8,
+        "h": 8
+      },
+      "description": "历史每日汇总，按 Asia/Shanghai 零点归档。缺失不补零、不跨日延续；当天请查看顶部快照。",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "${DS_VICTORIAMETRICS}"
+      },
+      "interval": "1d",
+      "maxDataPoints": 10000,
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "${DS_VICTORIAMETRICS}"
+          },
+          "expr": "last_over_time(zepp_distance_meters_daily{account=~\"${account:regex}\"}[1d]) and (tlast_over_time(zepp_distance_meters_daily{account=~\"${account:regex}\"}[1d]) >= floor((time() + 28800) / 86400) * 86400 - 28800)",
+          "legendFormat": "距离",
+          "refId": "A",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "format": "time_series",
+          "interval": "1d",
+          "utcOffsetSec": 28800
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "lengthm",
+          "noValue": "暂无数据",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "bars",
+            "lineInterpolation": "linear",
+            "lineWidth": 0,
+            "fillOpacity": 45,
+            "showPoints": "auto",
+            "pointSize": 4,
+            "spanNulls": false,
+            "insertNulls": false,
+            "barAlignment": 0,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "axisBorderShow": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        }
+      }
+    },
+    {
+      "id": 22,
+      "title": "跑步 · 每日距离",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 8,
+        "y": 52,
+        "w": 8,
+        "h": 8
+      },
+      "description": "历史每日汇总，按 Asia/Shanghai 零点归档。缺失不补零、不跨日延续；当天请查看顶部快照。",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "${DS_VICTORIAMETRICS}"
+      },
+      "interval": "1d",
+      "maxDataPoints": 10000,
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "${DS_VICTORIAMETRICS}"
+          },
+          "expr": "last_over_time(zepp_running_distance_meters_daily{account=~\"${account:regex}\"}[1d]) and (tlast_over_time(zepp_running_distance_meters_daily{account=~\"${account:regex}\"}[1d]) >= floor((time() + 28800) / 86400) * 86400 - 28800)",
+          "legendFormat": "跑步距离",
+          "refId": "A",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "format": "time_series",
+          "interval": "1d",
+          "utcOffsetSec": 28800
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "lengthm",
+          "noValue": "暂无数据",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "bars",
+            "lineInterpolation": "linear",
+            "lineWidth": 0,
+            "fillOpacity": 45,
+            "showPoints": "auto",
+            "pointSize": 4,
+            "spanNulls": false,
+            "insertNulls": false,
+            "barAlignment": 0,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "axisBorderShow": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        }
+      }
+    },
+    {
+      "id": 23,
+      "title": "日常活动 · 热量",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 16,
+        "y": 52,
+        "w": 8,
+        "h": 8
+      },
+      "description": "历史每日汇总，按 Asia/Shanghai 零点归档。缺失不补零、不跨日延续；当天请查看顶部快照。",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "${DS_VICTORIAMETRICS}"
+      },
+      "interval": "1d",
+      "maxDataPoints": 10000,
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "${DS_VICTORIAMETRICS}"
+          },
+          "expr": "last_over_time(zepp_calories_daily{account=~\"${account:regex}\"}[1d]) and (tlast_over_time(zepp_calories_daily{account=~\"${account:regex}\"}[1d]) >= floor((time() + 28800) / 86400) * 86400 - 28800)",
+          "legendFormat": "热量",
+          "refId": "A",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "format": "time_series",
+          "interval": "1d",
+          "utcOffsetSec": 28800
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix:kcal",
+          "noValue": "暂无数据",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "bars",
+            "lineInterpolation": "linear",
+            "lineWidth": 0,
+            "fillOpacity": 45,
+            "showPoints": "auto",
+            "pointSize": 4,
+            "spanNulls": false,
+            "insertNulls": false,
+            "barAlignment": 0,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "axisBorderShow": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        }
+      }
+    },
+    {
+      "title": "03 / 睡眠结构与设备观测",
+      "type": "row",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 60,
+        "w": 24,
+        "h": 1
+      },
+      "id": 24
+    },
+    {
+      "id": 25,
+      "title": "睡眠 · 阶段时长",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 61,
+        "w": 24,
         "h": 8
       },
       "description": "历史每日汇总，按 Asia/Shanghai 零点归档。缺失不补零、不跨日延续；当天请查看顶部快照。",
@@ -755,8 +1991,8 @@
             "drawStyle": "bars",
             "lineInterpolation": "linear",
             "lineWidth": 0,
-            "fillOpacity": 75,
-            "showPoints": "always",
+            "fillOpacity": 45,
+            "showPoints": "auto",
             "pointSize": 4,
             "spanNulls": false,
             "insertNulls": false,
@@ -774,7 +2010,8 @@
               "legend": false,
               "tooltip": false,
               "viz": false
-            }
+            },
+            "axisBorderShow": false
           }
         },
         "overrides": []
@@ -782,52 +2019,51 @@
       "options": {
         "tooltip": {
           "mode": "multi",
-          "sort": "none"
+          "sort": "desc"
         },
         "legend": {
           "displayMode": "list",
           "placement": "bottom",
-          "showLegend": true
+          "showLegend": true,
+          "calcs": []
         }
       }
     },
     {
-      "id": 12,
-      "title": "睡眠 · 评分",
+      "id": 26,
+      "title": "心率 · 实测记录",
       "type": "timeseries",
       "gridPos": {
         "x": 0,
-        "y": 23,
+        "y": 69,
         "w": 12,
         "h": 8
       },
-      "description": "历史每日汇总，按 Asia/Shanghai 零点归档。缺失不补零、不跨日延续；当天请查看顶部快照。",
+      "description": "设备实测值，查询点仅回看 5 分钟；不会用很早的读数填满长时间空白。放大到单日可查看细节。",
       "datasource": {
         "type": "victoriametrics-metrics-datasource",
         "uid": "${DS_VICTORIAMETRICS}"
       },
-      "interval": "1d",
-      "maxDataPoints": 10000,
+      "interval": "1m",
+      "maxDataPoints": 1500,
       "targets": [
         {
           "datasource": {
             "type": "victoriametrics-metrics-datasource",
             "uid": "${DS_VICTORIAMETRICS}"
           },
-          "expr": "last_over_time(zepp_sleep_score_daily{account=~\"${account:regex}\"}[1d]) and (tlast_over_time(zepp_sleep_score_daily{account=~\"${account:regex}\"}[1d]) >= floor((time() + 28800) / 86400) * 86400 - 28800)",
-          "legendFormat": "睡眠评分",
+          "expr": "last_over_time(zepp_heart_rate_bpm{account=~\"${account:regex}\"}[5m])",
+          "legendFormat": "心率 · 实测记录",
           "refId": "A",
           "editorMode": "code",
           "instant": false,
           "range": true,
-          "format": "time_series",
-          "interval": "1d",
-          "utcOffsetSec": 28800
+          "format": "time_series"
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "short",
+          "unit": "suffix:bpm",
           "noValue": "暂无数据",
           "color": {
             "mode": "palette-classic"
@@ -836,8 +2072,8 @@
             "drawStyle": "line",
             "lineInterpolation": "linear",
             "lineWidth": 2,
-            "fillOpacity": 8,
-            "showPoints": "always",
+            "fillOpacity": 10,
+            "showPoints": "auto",
             "pointSize": 4,
             "spanNulls": false,
             "insertNulls": false,
@@ -855,7 +2091,8 @@
               "legend": false,
               "tooltip": false,
               "viz": false
-            }
+            },
+            "axisBorderShow": false
           }
         },
         "overrides": []
@@ -863,62 +2100,46 @@
       "options": {
         "tooltip": {
           "mode": "multi",
-          "sort": "none"
+          "sort": "desc"
         },
         "legend": {
           "displayMode": "list",
           "placement": "bottom",
-          "showLegend": true
+          "showLegend": true,
+          "calcs": []
         }
       }
     },
     {
-      "id": 13,
-      "title": "静息心率与平均压力",
+      "id": 27,
+      "title": "压力 · 实测记录",
       "type": "timeseries",
       "gridPos": {
         "x": 12,
-        "y": 23,
+        "y": 69,
         "w": 12,
         "h": 8
       },
-      "description": "历史每日汇总，按 Asia/Shanghai 零点归档。缺失不补零、不跨日延续；当天请查看顶部快照。",
+      "description": "设备实测值，查询点仅回看 5 分钟；不会用很早的读数填满长时间空白。放大到单日可查看细节。",
       "datasource": {
         "type": "victoriametrics-metrics-datasource",
         "uid": "${DS_VICTORIAMETRICS}"
       },
-      "interval": "1d",
-      "maxDataPoints": 10000,
+      "interval": "1m",
+      "maxDataPoints": 1500,
       "targets": [
         {
           "datasource": {
             "type": "victoriametrics-metrics-datasource",
             "uid": "${DS_VICTORIAMETRICS}"
           },
-          "expr": "last_over_time(zepp_resting_hr_daily{account=~\"${account:regex}\"}[1d]) and (tlast_over_time(zepp_resting_hr_daily{account=~\"${account:regex}\"}[1d]) >= floor((time() + 28800) / 86400) * 86400 - 28800)",
-          "legendFormat": "静息心率 (bpm)",
+          "expr": "last_over_time(zepp_stress{account=~\"${account:regex}\"}[5m])",
+          "legendFormat": "压力 · 实测记录",
           "refId": "A",
           "editorMode": "code",
           "instant": false,
           "range": true,
-          "format": "time_series",
-          "interval": "1d",
-          "utcOffsetSec": 28800
-        },
-        {
-          "datasource": {
-            "type": "victoriametrics-metrics-datasource",
-            "uid": "${DS_VICTORIAMETRICS}"
-          },
-          "expr": "last_over_time(zepp_stress_avg_daily{account=~\"${account:regex}\"}[1d]) and (tlast_over_time(zepp_stress_avg_daily{account=~\"${account:regex}\"}[1d]) >= floor((time() + 28800) / 86400) * 86400 - 28800)",
-          "legendFormat": "平均压力",
-          "refId": "B",
-          "editorMode": "code",
-          "instant": false,
-          "range": true,
-          "format": "time_series",
-          "interval": "1d",
-          "utcOffsetSec": 28800
+          "format": "time_series"
         }
       ],
       "fieldConfig": {
@@ -932,8 +2153,8 @@
             "drawStyle": "line",
             "lineInterpolation": "linear",
             "lineWidth": 2,
-            "fillOpacity": 8,
-            "showPoints": "always",
+            "fillOpacity": 10,
+            "showPoints": "auto",
             "pointSize": 4,
             "spanNulls": false,
             "insertNulls": false,
@@ -951,7 +2172,8 @@
               "legend": false,
               "tooltip": false,
               "viz": false
-            }
+            },
+            "axisBorderShow": false
           }
         },
         "overrides": []
@@ -959,265 +2181,36 @@
       "options": {
         "tooltip": {
           "mode": "multi",
-          "sort": "none"
+          "sort": "desc"
         },
         "legend": {
           "displayMode": "list",
           "placement": "bottom",
-          "showLegend": true
+          "showLegend": true,
+          "calcs": []
         }
       }
     },
     {
-      "id": 14,
-      "title": "日常活动 · 步数",
-      "type": "timeseries",
+      "title": "04 / 训练负荷与心肺能力",
+      "type": "row",
+      "collapsed": false,
+      "panels": [],
       "gridPos": {
         "x": 0,
-        "y": 31,
-        "w": 8,
-        "h": 8
+        "y": 77,
+        "w": 24,
+        "h": 1
       },
-      "description": "历史每日汇总，按 Asia/Shanghai 零点归档。缺失不补零、不跨日延续；当天请查看顶部快照。",
-      "datasource": {
-        "type": "victoriametrics-metrics-datasource",
-        "uid": "${DS_VICTORIAMETRICS}"
-      },
-      "interval": "1d",
-      "maxDataPoints": 10000,
-      "targets": [
-        {
-          "datasource": {
-            "type": "victoriametrics-metrics-datasource",
-            "uid": "${DS_VICTORIAMETRICS}"
-          },
-          "expr": "last_over_time(zepp_steps_daily{account=~\"${account:regex}\"}[1d]) and (tlast_over_time(zepp_steps_daily{account=~\"${account:regex}\"}[1d]) >= floor((time() + 28800) / 86400) * 86400 - 28800)",
-          "legendFormat": "步数",
-          "refId": "A",
-          "editorMode": "code",
-          "instant": false,
-          "range": true,
-          "format": "time_series",
-          "interval": "1d",
-          "utcOffsetSec": 28800
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "noValue": "暂无数据",
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "drawStyle": "bars",
-            "lineInterpolation": "linear",
-            "lineWidth": 0,
-            "fillOpacity": 75,
-            "showPoints": "always",
-            "pointSize": 4,
-            "spanNulls": false,
-            "insertNulls": false,
-            "barAlignment": 0,
-            "stacking": {
-              "mode": "none",
-              "group": "A"
-            },
-            "axisPlacement": "auto",
-            "axisLabel": "",
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            }
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "tooltip": {
-          "mode": "multi",
-          "sort": "none"
-        },
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        }
-      }
+      "id": 28
     },
     {
-      "id": 15,
-      "title": "日常活动 · 距离",
-      "type": "timeseries",
-      "gridPos": {
-        "x": 8,
-        "y": 31,
-        "w": 8,
-        "h": 8
-      },
-      "description": "历史每日汇总，按 Asia/Shanghai 零点归档。缺失不补零、不跨日延续；当天请查看顶部快照。",
-      "datasource": {
-        "type": "victoriametrics-metrics-datasource",
-        "uid": "${DS_VICTORIAMETRICS}"
-      },
-      "interval": "1d",
-      "maxDataPoints": 10000,
-      "targets": [
-        {
-          "datasource": {
-            "type": "victoriametrics-metrics-datasource",
-            "uid": "${DS_VICTORIAMETRICS}"
-          },
-          "expr": "last_over_time(zepp_distance_meters_daily{account=~\"${account:regex}\"}[1d]) and (tlast_over_time(zepp_distance_meters_daily{account=~\"${account:regex}\"}[1d]) >= floor((time() + 28800) / 86400) * 86400 - 28800)",
-          "legendFormat": "距离",
-          "refId": "A",
-          "editorMode": "code",
-          "instant": false,
-          "range": true,
-          "format": "time_series",
-          "interval": "1d",
-          "utcOffsetSec": 28800
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "lengthm",
-          "noValue": "暂无数据",
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "drawStyle": "bars",
-            "lineInterpolation": "linear",
-            "lineWidth": 0,
-            "fillOpacity": 75,
-            "showPoints": "always",
-            "pointSize": 4,
-            "spanNulls": false,
-            "insertNulls": false,
-            "barAlignment": 0,
-            "stacking": {
-              "mode": "none",
-              "group": "A"
-            },
-            "axisPlacement": "auto",
-            "axisLabel": "",
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            }
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "tooltip": {
-          "mode": "multi",
-          "sort": "none"
-        },
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        }
-      }
-    },
-    {
-      "id": 16,
-      "title": "日常活动 · 热量",
-      "type": "timeseries",
-      "gridPos": {
-        "x": 16,
-        "y": 31,
-        "w": 8,
-        "h": 8
-      },
-      "description": "历史每日汇总，按 Asia/Shanghai 零点归档。缺失不补零、不跨日延续；当天请查看顶部快照。",
-      "datasource": {
-        "type": "victoriametrics-metrics-datasource",
-        "uid": "${DS_VICTORIAMETRICS}"
-      },
-      "interval": "1d",
-      "maxDataPoints": 10000,
-      "targets": [
-        {
-          "datasource": {
-            "type": "victoriametrics-metrics-datasource",
-            "uid": "${DS_VICTORIAMETRICS}"
-          },
-          "expr": "last_over_time(zepp_calories_daily{account=~\"${account:regex}\"}[1d]) and (tlast_over_time(zepp_calories_daily{account=~\"${account:regex}\"}[1d]) >= floor((time() + 28800) / 86400) * 86400 - 28800)",
-          "legendFormat": "热量",
-          "refId": "A",
-          "editorMode": "code",
-          "instant": false,
-          "range": true,
-          "format": "time_series",
-          "interval": "1d",
-          "utcOffsetSec": 28800
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "suffix:kcal",
-          "noValue": "暂无数据",
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "drawStyle": "bars",
-            "lineInterpolation": "linear",
-            "lineWidth": 0,
-            "fillOpacity": 75,
-            "showPoints": "always",
-            "pointSize": 4,
-            "spanNulls": false,
-            "insertNulls": false,
-            "barAlignment": 0,
-            "stacking": {
-              "mode": "none",
-              "group": "A"
-            },
-            "axisPlacement": "auto",
-            "axisLabel": "",
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            }
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "tooltip": {
-          "mode": "multi",
-          "sort": "none"
-        },
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        }
-      }
-    },
-    {
-      "id": 17,
+      "id": 29,
       "title": "训练负荷 · ATL / CTL",
       "type": "timeseries",
       "gridPos": {
         "x": 0,
-        "y": 39,
+        "y": 78,
         "w": 12,
         "h": 8
       },
@@ -1271,8 +2264,8 @@
             "drawStyle": "line",
             "lineInterpolation": "linear",
             "lineWidth": 2,
-            "fillOpacity": 8,
-            "showPoints": "always",
+            "fillOpacity": 10,
+            "showPoints": "auto",
             "pointSize": 4,
             "spanNulls": false,
             "insertNulls": false,
@@ -1290,7 +2283,8 @@
               "legend": false,
               "tooltip": false,
               "viz": false
-            }
+            },
+            "axisBorderShow": false
           }
         },
         "overrides": []
@@ -1298,22 +2292,23 @@
       "options": {
         "tooltip": {
           "mode": "multi",
-          "sort": "none"
+          "sort": "desc"
         },
         "legend": {
           "displayMode": "list",
           "placement": "bottom",
-          "showLegend": true
+          "showLegend": true,
+          "calcs": []
         }
       }
     },
     {
-      "id": 18,
+      "id": 30,
       "title": "训练状态 · TSB",
       "type": "timeseries",
       "gridPos": {
         "x": 12,
-        "y": 39,
+        "y": 78,
         "w": 12,
         "h": 8
       },
@@ -1352,8 +2347,8 @@
             "drawStyle": "line",
             "lineInterpolation": "linear",
             "lineWidth": 2,
-            "fillOpacity": 8,
-            "showPoints": "always",
+            "fillOpacity": 10,
+            "showPoints": "auto",
             "pointSize": 4,
             "spanNulls": false,
             "insertNulls": false,
@@ -1371,7 +2366,8 @@
               "legend": false,
               "tooltip": false,
               "viz": false
-            }
+            },
+            "axisBorderShow": false
           }
         },
         "overrides": []
@@ -1379,22 +2375,23 @@
       "options": {
         "tooltip": {
           "mode": "multi",
-          "sort": "none"
+          "sort": "desc"
         },
         "legend": {
           "displayMode": "list",
           "placement": "bottom",
-          "showLegend": true
+          "showLegend": true,
+          "calcs": []
         }
       }
     },
     {
-      "id": 19,
+      "id": 31,
       "title": "训练负荷 · TRIMP / 运动负荷",
       "type": "timeseries",
       "gridPos": {
         "x": 0,
-        "y": 47,
+        "y": 86,
         "w": 12,
         "h": 8
       },
@@ -1448,8 +2445,8 @@
             "drawStyle": "bars",
             "lineInterpolation": "linear",
             "lineWidth": 0,
-            "fillOpacity": 75,
-            "showPoints": "always",
+            "fillOpacity": 45,
+            "showPoints": "auto",
             "pointSize": 4,
             "spanNulls": false,
             "insertNulls": false,
@@ -1467,7 +2464,8 @@
               "legend": false,
               "tooltip": false,
               "viz": false
-            }
+            },
+            "axisBorderShow": false
           }
         },
         "overrides": []
@@ -1475,22 +2473,23 @@
       "options": {
         "tooltip": {
           "mode": "multi",
-          "sort": "none"
+          "sort": "desc"
         },
         "legend": {
           "displayMode": "list",
           "placement": "bottom",
-          "showLegend": true
+          "showLegend": true,
+          "calcs": []
         }
       }
     },
     {
-      "id": 20,
+      "id": 32,
       "title": "训练负荷 · 周负荷与最佳区间",
       "type": "timeseries",
       "gridPos": {
         "x": 12,
-        "y": 47,
+        "y": 86,
         "w": 12,
         "h": 8
       },
@@ -1559,8 +2558,8 @@
             "drawStyle": "line",
             "lineInterpolation": "linear",
             "lineWidth": 2,
-            "fillOpacity": 8,
-            "showPoints": "always",
+            "fillOpacity": 10,
+            "showPoints": "auto",
             "pointSize": 4,
             "spanNulls": false,
             "insertNulls": false,
@@ -1578,7 +2577,8 @@
               "legend": false,
               "tooltip": false,
               "viz": false
-            }
+            },
+            "axisBorderShow": false
           }
         },
         "overrides": []
@@ -1586,24 +2586,25 @@
       "options": {
         "tooltip": {
           "mode": "multi",
-          "sort": "none"
+          "sort": "desc"
         },
         "legend": {
           "displayMode": "list",
           "placement": "bottom",
-          "showLegend": true
+          "showLegend": true,
+          "calcs": []
         }
       }
     },
     {
-      "id": 21,
+      "id": 33,
       "title": "心肺能力 · VO₂ max",
       "type": "timeseries",
       "gridPos": {
         "x": 0,
-        "y": 55,
+        "y": 94,
         "w": 24,
-        "h": 8
+        "h": 7
       },
       "description": "历史每日汇总，按 Asia/Shanghai 零点归档。缺失不补零、不跨日延续；当天请查看顶部快照。",
       "datasource": {
@@ -1640,8 +2641,8 @@
             "drawStyle": "line",
             "lineInterpolation": "linear",
             "lineWidth": 2,
-            "fillOpacity": 8,
-            "showPoints": "always",
+            "fillOpacity": 10,
+            "showPoints": "auto",
             "pointSize": 4,
             "spanNulls": false,
             "insertNulls": false,
@@ -1659,7 +2660,8 @@
               "legend": false,
               "tooltip": false,
               "viz": false
-            }
+            },
+            "axisBorderShow": false
           }
         },
         "overrides": []
@@ -1667,38 +2669,36 @@
       "options": {
         "tooltip": {
           "mode": "multi",
-          "sort": "none"
+          "sort": "desc"
         },
         "legend": {
           "displayMode": "list",
           "placement": "bottom",
-          "showLegend": true
+          "showLegend": true,
+          "calcs": []
         }
       }
     },
     {
-      "id": 22,
-      "title": "同步状态",
-      "type": "text",
+      "title": "05 / 数据同步",
+      "type": "row",
+      "collapsed": false,
+      "panels": [],
       "gridPos": {
         "x": 0,
-        "y": 63,
+        "y": 101,
         "w": 24,
-        "h": 2
+        "h": 1
       },
-      "description": "",
-      "options": {
-        "mode": "markdown",
-        "content": "### 同步状态\n状态样本超过 3 分钟后显示暂无数据。待同步、失败、导出积压与冲突分别展示；需要认证时请在应用中更新凭据。"
-      }
+      "id": 34
     },
     {
-      "id": 23,
+      "id": 35,
       "title": "待同步任务",
       "type": "stat",
       "gridPos": {
         "x": 0,
-        "y": 65,
+        "y": 102,
         "w": 4,
         "h": 4
       },
@@ -1763,12 +2763,12 @@
       }
     },
     {
-      "id": 24,
+      "id": 36,
       "title": "失败任务",
       "type": "stat",
       "gridPos": {
         "x": 4,
-        "y": 65,
+        "y": 102,
         "w": 4,
         "h": 4
       },
@@ -1833,12 +2833,12 @@
       }
     },
     {
-      "id": 25,
+      "id": 37,
       "title": "需要认证",
       "type": "stat",
       "gridPos": {
         "x": 8,
-        "y": 65,
+        "y": 102,
         "w": 4,
         "h": 4
       },
@@ -1917,12 +2917,12 @@
       }
     },
     {
-      "id": 26,
+      "id": 38,
       "title": "待导出记录",
       "type": "stat",
       "gridPos": {
         "x": 12,
-        "y": 65,
+        "y": 102,
         "w": 4,
         "h": 4
       },
@@ -1987,12 +2987,12 @@
       }
     },
     {
-      "id": 27,
+      "id": 39,
       "title": "数据冲突",
       "type": "stat",
       "gridPos": {
         "x": 16,
-        "y": 65,
+        "y": 102,
         "w": 4,
         "h": 4
       },
@@ -2057,12 +3057,12 @@
       }
     },
     {
-      "id": 28,
+      "id": 40,
       "title": "距上次同步成功",
       "type": "stat",
       "gridPos": {
         "x": 20,
-        "y": 65,
+        "y": 102,
         "w": 4,
         "h": 4
       },

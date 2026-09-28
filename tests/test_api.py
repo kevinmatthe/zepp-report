@@ -53,7 +53,7 @@ def test_enqueue_and_empty_range(client):
     headers=login(client)
     client.put('/api/settings',json={'token':'secret','user_id':'123'},headers=headers)
     r=client.post('/api/sync',json={'from_date':'2026-09-25','to_date':'2026-09-26'},headers=headers)
-    assert r.status_code==200 and r.json()['queued']==12
+    assert r.status_code==200 and r.json()['queued']==14
     assert client.get('/api/data?from_date=2026-09-25&to_date=2026-09-26').json()['days']==[]
     assert client.get('/api/export?from_date=2026-09-25&to_date=2026-09-26').status_code==200
 
@@ -79,3 +79,33 @@ def test_same_token_resubmission_can_recover_auth_pause(client):
     client.app.state.store.set_meta('auth_required',True)
     client.put('/api/settings',json={'token':'new-token'},headers=headers)
     assert not client.get('/api/status').json()['auth_required']
+
+
+def test_coverage_preview_filtered_retry_and_analytics(client):
+    headers=login(client)
+    client.put('/api/settings',json={'token':'secret','user_id':'123'},headers=headers)
+    body={'from_date':'2026-09-01','to_date':'2026-09-02','kinds':['band']}
+    assert client.post('/api/sync/preview',json=body,headers=headers).json()['queued']==2
+    assert client.post('/api/sync',json=body,headers=headers).json()['queued']==2
+    result=client.get('/api/coverage?from_date=2026-09-01&to_date=2026-09-03').json()
+    assert len(result['days'])==3 and result['days'][0]['counts']['pending']==1
+    for day in ('2026-09-01','2026-09-02'):
+        client.app.state.store.finish({'day':day,'kind':'band'},'failed','test')
+    body['to_date']='2026-09-01'
+    assert client.post('/api/retry',json=body,headers=headers).json()['queued']==1
+    assert client.get('/api/tasks?from_date=2026-09-01&to_date=2026-09-02&limit=1').json()['total']==2
+    result=client.get('/api/analytics/trends?from_date=2026-09-01&to_date=2026-09-02').json()
+    assert len(result['days'])==2
+    result=client.get('/api/analytics/profile?from_date=2026-09-01&to_date=2026-09-02&metric=heart_rate').json()
+    assert len(result['buckets'])==288
+    assert client.get('/api/days/2026-09-01').json()['date']=='2026-09-01'
+    assert client.get('/api/analytics/profile?from_date=2026-09-01&to_date=2026-09-02&metric=oops').status_code==422
+    body['kinds']=['oops']
+    assert client.post('/api/sync/preview',json=body,headers=headers).status_code==422
+
+
+def test_coverage_allows_future_grid_but_sync_does_not(client):
+    headers=login(client)
+    client.put('/api/settings',json={'token':'secret','user_id':'123'},headers=headers)
+    assert client.get('/api/coverage?from_date=2099-01-01&to_date=2099-12-31').status_code==200
+    assert client.post('/api/sync',json={'from_date':'2099-01-01','to_date':'2099-01-01'},headers=headers).status_code==422

@@ -7,10 +7,13 @@
 
 - 心率、睡眠阶段与评分、步数/距离/热量、压力、ATL/CTL/TSB、TRIMP、运动负荷的采集与展示。
 - 默认每 30 分钟回看 3 天；首次回填 30 天，可在设置中调整。
-- **手动历史回溯**：Web UI → 数据同步 → 历史补数，选择起止日期。默认跳过完成项；勾选「重新获取已完成数据」才强制重新请求。
+- **手动历史回溯**：Web UI → 同步日历 → 补齐未完成 / 历史补数，选择起止日期。默认跳过完成项；勾选「重新获取已完成数据」才强制重新请求。
 - **可恢复**：任务按日期 × 接口持久化，断点续传、Token 失效暂停、失败项重试、VM 持久队列、在线备份。
-- 中文响应式界面，支持日期范围、趋势、睡眠阶段、同步状态、凭据更新及 JSONL 导出。
-- 原生 VictoriaMetrics Grafana 数据源与 28 个面板（含分区）的健康看板。
+- 趋势优先的中文响应式界面：现代日期范围面板、7/30/90天及自然周期、同比环比、周/月聚合。
+- GitHub 风格的年/月覆盖日历、日期 × 接口周矩阵、单日任务下钻；按选区预览补采或重试。
+- 心率/压力中位数与百分位带、步数与滚动均值、睡眠构成/评分/作息、典型一天与指定日叠加。
+- 完整运动摘要与日常活动片段分开统计；运动接口分页断点持久化，未知类型保留原始代码。
+- 原生 VictoriaMetrics Grafana 数据源与 40 个面板（含分区）的健康看板。
 
 VO₂ Max 的接口会采集并保留原始响应，已识别 `vo2Max` 数值时展示；上游尚无确认的非空样例，不保证所有设备的 VO₂ 格式兼容。血氧、体温接口暂未实现。没有数据展示「—」，不会填零。客户端使用非官方接口，真实兼容性取决于账号区域和设备。
 
@@ -104,12 +107,15 @@ python3 -m venv .venv
 .venv/bin/pip install -r requirements-dev.txt
 export ADMIN_PASSWORD='至少12字符的本地测试密码'
 export COOKIE_SECURE=false
+npm ci
+npm run build
 .venv/bin/uvicorn zepp_report.app:create_app --factory --host 127.0.0.1 --port 8000
 ```
 
 ```sh
 .venv/bin/python -m pytest -q
-node --check zepp_report/static/app.js
+npm run build
+npm run test:ui
 # 需要已安装 Playwright/Chromium，可通过环境变量指定路径：
 PLAYWRIGHT_MODULE=/path/to/playwright CHROMIUM_PATH=/path/to/chrome node tests/ui_browser.cjs
 # 可选真实 API 浏览器联调，仅对独立的测试实例运行（会写入测试账号配置）：
@@ -122,3 +128,51 @@ UI_LIVE_URL=http://127.0.0.1:18187 UI_LIVE_PASSWORD=test-password-long \
 ```
 
 测试覆盖解码、时区/跨日睡眠、事务与恢复、Token 更新中断、存储失败、VM 超时、同源写入限制、凭据不回显、备份恢复和看板指标。实际 Zepp 账号验证需要真实 Token；测试数据与浏览器 fixture 不代表真实账号已连接。
+
+
+## 趋势与统计口径
+
+默认看最近30个完整日（至昨天）；勾选包含今天时图表显示进行中的数据，周期比较仍排除今天。
+日心率/压力分位数基于当日有效样本，周/月分布基于每日中位数，避免高采样日获得额外权重。
+典型一天先计算每天每5分钟桶的中位数，再跨天等权计算均值与分位数；不足2天不画基线，不足5天不画分位带。分位带描述已有观测分布，不是健康正常范围。
+
+日均步数等卡片只按有效观测日计算，同时显示有效/总日数；没有测量不补零。7日均线按窗口内实际观测日计算，缺日不会人为拉低均值。
+上一周期通常等长；完整自然月按上月对比，月长不同时累计指标比较日均值。去年同期按日历对齐，闰日夹取到2月28日。
+负基数、零基数不生成百分比；对比有效天数不足7天（短周期为周期天数）或覆盖不足70%时标明参考不足。
+
+睡眠的原有 `sleep_minutes` 指记录起止跨度，保持历史VM指标口径不变；Web趋势新增 `actual_sleep_minutes` 只计无冲突的浅睡/深睡/REM。
+重叠矛盾、未知阶段和缺段单列，不默认为睡眠；作息按中午展开24小时时钟，避免23:30和00:30被平均成中午。
+
+完整运动支持已确认代码的户外跑步、步行、户外骑行、泳池游泳、足球、跳绳、徒步、力量训练；未知代码显示未知类型。
+历史列表 `from/to` 使用日期字符串，`next` 游标原样传给 `trackid`，`-1` 才结束。按 `(trackid, source)` 去重，再按配置时区的开始日期归属。
+运动摘要时长取活动时长，距离为米；此版不采集GPS轨迹和完整运动详情。自动活动片段与运动摘要是两种来源，不相加。
+
+## 分析索引与升级
+
+`analytics_jobs` 为持久化重算队列，`analytics_days` 为日统计/5分钟代表值，`analytics_activities` 为可分页活动索引。
+采集归档事务通过触发器标记变更；相同内容不重复重算。独立分析线程优先最近日期，失败自动重试，重启恢复运行中项。
+生成结果提交前检查来源代次，避免重算期间的新采集被旧结果覆盖。算法版本变化或派生缓存缺失时自动从归档重建，不触发Zepp重新下载或VM重复投递。
+
+迁移只新增结构，升级时为已有band任务日期补上workouts采集任务，不强制重采其他已完成接口。
+部署前用在线备份保留数据，随后 `docker compose up -d --build`；Docker多阶段构建包含本地打包的前端，无CDN依赖。
+回退时优先切换旧镜像，不恢复过时数据库覆盖新增健康数据；新增表对旧镜像兼容。
+前端第三方许可随构建输出至 `/static/dist/THIRD_PARTY_LICENSES.txt`。
+
+新增只读接口：`/api/coverage`、`/api/tasks`（日期/接口/状态分页）、`/api/analytics/trends`、`/api/analytics/profile`、`/api/days/{date}`、`/api/activities`（来源/类型分页）。
+`POST /api/sync/preview` 只做预览；`/api/sync` 与 `/api/retry` 可指定日期和接口。全部沿用会话鉴权与写操作同源保护。
+
+## GitHub Actions 与 GHCR 镜像
+
+推送分支/版本标签后，`.github/workflows/container.yml` 先执行Python和浏览器测试，再构建镜像并验证非root启动、持久化重启与备份，最后发布到 `ghcr.io/kevinmatthe/zepp-report`。
+PR只测试与构建，不推送镜像。Actions使用仓库自动提供的 `GITHUB_TOKEN`（`packages: write`），不需要另外保存PAT。
+
+镜像标签：`sha-<完整提交SHA>`、分支名、`v*`版本标签；默认分支额外更新 `latest`。生产部署推荐固定SHA标签，便于回滚。
+GHCR新包默认可能为私有，访问权限遵循GitHub包设置；本工作流不会自动公开仓库或镜像。私有镜像拉取需要具有读取包权限的登录。
+
+```sh
+docker pull ghcr.io/kevinmatthe/zepp-report:latest
+```
+
+现有Compose保留本地构建能力。使用GHCR时将服务 `image` 改为固定标签后运行 `docker compose pull zepp-report` 和 `docker compose up -d --no-build zepp-report`；保持原数据挂载。
+
+此次新增的活动/运动/可识别睡眠指标会通过独立的 `metric_backfill` 检查点，从已有归档补入持久投递队列。补导仅允许新增指标名，不重发旧指标、不删除或修改VM历史；中断后继续。完整运动按类型增加 `zepp_workout_type_minutes_daily/current`，日常活动片段使用独立的 `zepp_activity_type_minutes_daily/current`。

@@ -21,7 +21,7 @@ class ZeppClient:
         self.transport = transport or requests.Session()
         self.sleep = sleep
 
-    def request(self, path, params, band=False):
+    def request(self, path, params, band=False, workout=False):
         headers = {'apptoken':self.settings['token'], 'appPlatform':'web' if band else 'ios_phone',
                    'appname':'com.xiaomi.hm.health' if band else 'com.huami.midong',
                    'v':'2.0', 'timezone':self.settings['timezone']}
@@ -52,11 +52,26 @@ class ZeppClient:
                 raise AuthError('Zepp Token 已失效，请更新凭据')
             if ('code' in body and body['code'] not in (0,1,200)) or (band and body.get('code') != 1):
                 raise UpstreamError('Zepp 业务接口返回错误')
+            if workout:
+                data=body.get('data')
+                if (not isinstance(data,dict) or not isinstance(data.get('summary'),list)
+                    or type(data.get('next')) is not int or data['next'] not in (-1,) and data['next']<=0):
+                    raise UpstreamError('运动列表结构不完整，任务保留')
+                return body
             key = 'data' if band else 'items'
             if not isinstance(body.get(key), list):
                 raise UpstreamError(f'Zepp 响应缺少 {key} 数组')
             return body
         raise UpstreamError('Zepp 请求失败')
+
+    def fetch_workout_page(self,day,cursor=None):
+        # Fetch an adjacent-day margin then filter start timestamps locally.
+        d=date.fromisoformat(day)
+        params={'userid':self.settings['user_id'],'from':(d-timedelta(days=1)).isoformat(),
+                'to':(d+timedelta(days=1)).isoformat()}
+        if cursor is not None:
+            params['trackid']=cursor
+        return self.request('/v1/sport/run/history.json',params,workout=True)
 
     def fetch(self, kind, day):
         uid = self.settings['user_id']

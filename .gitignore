@@ -6,3 +6,6 @@ data/
 artifacts/
 *.egg-info/
 .worktrees/
+
+node_modules/
+zepp_report/static/dist/

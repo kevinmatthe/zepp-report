@@ -5,7 +5,7 @@ import { $, state, query, addDays, persist, escape, number } from "./state.js";
 import { plot, bands } from "./trend-charts.js";
 import { clampDay, createDayCache } from "./frontend-utils.js";
 const dayCache = createDayCache((day) => api("/api/days/" + day));
-let baseline = [], request = 0, baselineRequest = 0, dragging = false, draftDay = null;
+let baseline = [], request = 0, baselineRequest = 0;
 const clock = (m) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 async function loadProfile() {
   const id = ++baselineRequest, metric = $("profile-metric").value;
@@ -19,18 +19,36 @@ async function loadProfile() {
 const getDay = (day) => dayCache.get(day);
 function syncDayControls(day){
   $('overlay-day').value=day;$('overlay-day').min=state.from;$('overlay-day').max=state.to;
-  $('day-slider').max=Math.round((Date.parse(state.to)-Date.parse(state.from))/86400000);
-  $('day-slider').value=Math.round((Date.parse(day)-Date.parse(state.from))/86400000);
-  $('day-slider').setAttribute('aria-valuetext',day);
+  $('day-prev').disabled=day===state.from;
+  $('day-next').disabled=day===state.to;
+  const total=Math.round((Date.parse(state.to)-Date.parse(state.from))/86400000)+1;
+  const offset=Math.round((Date.parse(day)-Date.parse(state.from))/86400000);
+  const start=Math.max(0,Math.min(offset-2,total-5));
+  const dates=Array.from({length:Math.min(5,total)},(_,i)=>addDays(state.from,start+i));
+  const key=dates.join(',');
+  if($('day-dates').dataset.window!==key){
+    $('day-dates').dataset.window=key;
+    $('day-dates').innerHTML=dates.map(date=>{
+      const week=new Intl.DateTimeFormat('zh-CN',{weekday:'short',timeZone:'UTC'}).format(new Date(date+'T12:00:00Z'));
+      return `<button type="button" data-day="${date}" aria-label="查看 ${date} ${week}"><span>${week}</span><strong>${Number(date.slice(8))}</strong><small>${Number(date.slice(5,7))} 月</small></button>`;
+    }).join('');
+  }
+  for(const button of $('day-dates').children)button.setAttribute('aria-pressed',String(button.dataset.day===day));
+
 }
 async function showDay(day) {
-  if(dragging)return;
   day = clampDay(day,state.from,state.to);
   state.day=day;syncDayControls(day);
   $('day-preview').textContent=`正在读取 ${day}…`;
   const id = ++request;
-  const detail = await getDay(day);
-  if (id !== request || !state.active || dragging) return;
+  let detail;
+  try { detail=await getDay(day); }
+  catch(error){
+    if(id!==request||!state.active)return;
+    $('day-preview').textContent=`${day} 读取失败，请重试。`;
+    throw error;
+  }
+  if (id !== request || !state.active) return;
   for (const neighbor of [addDays(day, -1), addDays(day, 1)]) if (neighbor >= state.from && neighbor <= state.to) getDay(neighbor).catch(() => {
   });
   const metric = $("profile-metric").value;
@@ -46,7 +64,7 @@ async function showDay(day) {
   const coverage = Object.entries(detail.coverage || {}).map(([key, c]) => `${({heart_rate:"心率",stress:"压力",spo2:"血氧"})[key]||key}：观测 ${number(c.observed_minutes)} / ${number(c.expected_minutes)} 分钟，${number(c.n)} 个样本`).join(" · ");
   $('day-detail').innerHTML=`<h3>${escape(day)} <span class="muted">· 单日记录</span></h3><p>步数 ${number(detail.summary?.steps)} · 活动片段 ${detail.activities?.length||0} 段</p><p class="small muted">${escape(coverage)}</p><section id="sleep-night" class="sleep-night"></section>`;
   renderSleepNight(detail);
-  $('day-preview').textContent=`已显示 ${day} · 拖动预览，松开后读取`;
+  $('day-preview').textContent=`已显示 ${day} · 点击日期即可切换`;
   renderRawDay(detail);
 }
 function clearDayCache() {
@@ -56,24 +74,19 @@ function clearDayCache() {
 }
 function setupDay() {
   const choose=(day)=>{
-    dragging=false;draftDay=null;
     showDay(day).catch(e=>window.dispatchEvent(new CustomEvent('app-error',{detail:e.message})));
     persist();
   };
-  const begin=()=>{if(!dragging){dragging=true;request++}draftDay=addDays(state.from,Number($('day-slider').value))};
-  const commit=()=>{if(!dragging)return;const day=draftDay||addDays(state.from,Number($('day-slider').value));choose(day)};
-  $('overlay-day').onchange=e=>choose(e.target.value);
+  $('overlay-day').onchange=e=>{if(e.target.value)choose(e.target.value)};
   $('day-prev').onclick=()=>choose(addDays(state.day,-1));
   $('day-next').onclick=()=>choose(addDays(state.day,1));
-  $('day-slider').onpointerdown=begin;
-  $('day-slider').oninput=()=>{
-    begin();draftDay=addDays(state.from,Number($('day-slider').value));
-    $('overlay-day').value=draftDay;$('day-slider').setAttribute('aria-valuetext',draftDay);
-    $('day-preview').textContent=`预览 ${draftDay} · 松开滑杆后读取`;
+  $('day-dates').onclick=e=>{
+    const button=e.target.closest('button[data-day]');
+    if(button){
+      choose(button.dataset.day);
+      $('day-dates').querySelector('[aria-pressed="true"]')?.focus({preventScroll:true});
+    }
   };
-  $('day-slider').onchange=commit;
-  window.addEventListener('pointerup',commit);
-  $('day-slider').onpointercancel=()=>{dragging=false;draftDay=null;showDay(state.day).catch(e=>window.dispatchEvent(new CustomEvent('app-error',{detail:e.message})))};
   $("profile-metric").onchange = () => loadProfile().catch((e) => window.dispatchEvent(new CustomEvent("app-error", { detail: e.message })));
 }
 export {

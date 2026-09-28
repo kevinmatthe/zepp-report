@@ -1,0 +1,12 @@
+apiVersion: 1
+datasources:
+  - name: Zepp VictoriaMetrics
+    uid: zepp-victoriametrics
+    type: victoriametrics-metrics-datasource
+    access: proxy
+    url: http://vmselect:8481/select/0/prometheus
+    isDefault: false
+    editable: true
+    jsonData:
+      httpMethod: POST
+      timeInterval: 1m

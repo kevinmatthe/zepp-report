@@ -1,0 +1,42 @@
+services:
+  zepp-report:
+    build:
+      context: .
+      network: ${BUILD_NETWORK:-default}
+      args:
+        - http_proxy
+        - https_proxy
+        - HTTP_PROXY
+        - HTTPS_PROXY
+    image: zepp-report:local
+    container_name: zepp-report
+    restart: unless-stopped
+    stop_grace_period: 60s
+    init: true
+    environment:
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?请在 .env 中设置至少 12 字符的管理密码}
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      ZEPP_ACCOUNT: ${ZEPP_ACCOUNT:-personal}
+      ZEPP_USER_ID: ${ZEPP_USER_ID:-}
+      ZEPP_TOKEN: ${ZEPP_TOKEN:-}
+      ZEPP_REGION: ${ZEPP_REGION:-global}
+      ZEPP_TIMEZONE: ${ZEPP_TIMEZONE:-Asia/Shanghai}
+      VM_IMPORT_URL: ${VM_IMPORT_URL:-http://vminsert:8480/insert/0/prometheus/api/v1/import}
+      VM_BEARER_TOKEN: ${VM_BEARER_TOKEN:-}
+      DATA_DIR: /app/data
+    expose:
+      - "8000"
+    volumes:
+      - ./data:/app/data
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: homelab-v2
+      traefik.http.routers.zepp-report.rule: 'HostRegexp(`^zepp-report\..+$`)'
+      traefik.http.routers.zepp-report.service: zepp-report
+      traefik.http.services.zepp-report.loadbalancer.server.port: "8000"
+      traefik.http.services.zepp-report.loadbalancer.server.scheme: http
+
+networks:
+  default:
+    external: true
+    name: homelab-v2

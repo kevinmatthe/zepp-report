@@ -1,0 +1,9 @@
+[project]
+name = "zepp-report"
+version = "0.1.0"
+description = "Recoverable Zepp health archive with web dashboard and VictoriaMetrics integration"
+requires-python = ">=3.11"
+dependencies = ["fastapi==0.141.1", "uvicorn==0.54.0", "requests==2.34.2"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

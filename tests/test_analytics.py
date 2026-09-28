@@ -194,3 +194,59 @@ def test_activity_cache_can_be_deleted_and_recovered(tmp_path):
     assert index.status()['pending']==1
     index.rebuild_all()
     assert index.activities('2026-09-01','2026-09-01')['total']==1
+
+
+def test_comparison_series_preserves_missing_zero_and_original_dates(tmp_path):
+    store=Store(tmp_path/'test.db')
+    save(store,'2026-08-30',[60],0)
+    save(store,'2026-09-01',[80],100)
+    index=AnalyticsStore(store,'Asia/Shanghai'); index.rebuild_all()
+    result=analytics.trends(index,'2026-09-01','2026-09-02','previous')
+    baseline=result['comparison_days']
+    assert [d['aligned_date'] for d in baseline]==['2026-09-01','2026-09-02']
+    assert [d['date'] for d in baseline]==['2026-08-30','2026-08-31']
+    assert baseline[0]['summary']['steps']==0
+    assert baseline[1]['summary']=={}
+    assert analytics.trends(index,'2026-09-01','2026-09-02')['comparison_days']==[]
+
+
+def test_comparison_series_uses_current_week_boundaries(tmp_path):
+    store=Store(tmp_path/'test.db')
+    for day in ('2026-03-01','2026-03-02','2026-03-06'):
+        save(store,day,[60],100)
+    index=AnalyticsStore(store,'Asia/Shanghai'); index.rebuild_all()
+    result=analytics.trends(index,'2026-04-01','2026-04-30','previous','week')
+    baseline=result['comparison_days']
+    # April starts Wednesday, March starts Sunday. The first group must use
+    # five baseline days (March 1–5), not March's one-day first calendar week.
+    assert baseline[0]['aligned_date']==result['days'][0]['date']=='2026-03-30'
+    assert baseline[0]['from_date']=='2026-03-01'
+    assert baseline[0]['to_date']=='2026-03-05'
+    assert baseline[0]['summary']['steps']==200
+    assert baseline[1]['from_date']=='2026-03-06'
+    assert baseline[1]['to_date']=='2026-03-12'
+    assert baseline[1]['summary']['steps']==100
+    assert baseline[-1]['to_date']=='2026-03-30'
+
+
+def test_shorter_baseline_does_not_repeat_last_day(tmp_path):
+    store=Store(tmp_path/'test.db')
+    index=AnalyticsStore(store,'Asia/Shanghai')
+    result=analytics.trends(index,'2026-03-01','2026-03-31','previous')
+    assert len(result['comparison_days'])==28
+    assert result['comparison_days'][-1]['aligned_date']=='2026-03-28'
+    monthly=analytics.trends(index,'2026-03-01','2026-03-31','previous','month')
+    assert monthly['comparison_days'][0]['aligned_date']=='2026-03-01'
+    assert monthly['comparison_days'][0]['to_date']=='2026-02-28'
+
+
+def test_comparison_series_excludes_today(tmp_path):
+    from datetime import datetime, timedelta
+    from zoneinfo import ZoneInfo
+    today=datetime.now(ZoneInfo('Asia/Shanghai')).date()
+    yesterday=today-timedelta(days=1)
+    store=Store(tmp_path/'test.db')
+    index=AnalyticsStore(store,'Asia/Shanghai')
+    result=analytics.trends(index,yesterday.isoformat(),today.isoformat(),'previous')
+    assert len(result['comparison_days'])==1
+    assert result['comparison_days'][0]['aligned_date']==yesterday.isoformat()

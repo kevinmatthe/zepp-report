@@ -55,6 +55,10 @@ async function load() {
     if (id !== request || !state.active) return;
     data = d;
     renderTrends(data, openDay);
+    $('period-key').innerHTML=d.comparison?`<span>本期 ${escape(d.from_date||state.from)} — ${escape(d.to_date||state.to)}</span><span class="period-baseline">${state.compare==='year'?'去年同期':'上期'} ${escape(d.comparison.from_date)} — ${escape(d.comparison.to_date)}</span>`:'';
+    $('period-alignment').hidden=!d.comparison;
+    $('period-alignment').textContent='虚线为对比期，按周期内第几天对齐；周/月沿用本期分组边界。较长周期的多余日期不配对，缺失留空；今天不参与比较。悬停查看原始日期。';
+
     $("comparison-note").textContent = d.comparison ? `比较区间：${d.comparison.from_date} — ${d.comparison.to_date} · 缺失日期不计为零；不足覆盖仅供参考。` : "未选择对比或历史不足。可在同步日历中补齐历史。";
     if (d.summary_range) $("comparison-note").textContent += ` 当前统计有效范围：${d.summary_range.from_date} — ${d.summary_range.to_date}${d.summary_excludes_today ? "（不含尚未结束的今天）" : ""}。`;
     else if (d.summary_excludes_today) $("comparison-note").textContent += " 当前范围只有今天，日汇总比较等待今天结束；下方曲线仍显示已观测数据。";

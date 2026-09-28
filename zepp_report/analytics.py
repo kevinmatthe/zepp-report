@@ -168,12 +168,15 @@ def day_rows(index,start,end):
     return days,rows
 
 
-def group_days(days,grain):
+def group_days(days,grain,alignment=None):
+    # Baseline groups follow current-period boundaries, retaining source dates.
+    if alignment is not None:
+        days=[dict(day,aligned_date=current['date']) for day,current in zip(days,alignment)]
     if grain=='day':
         return days
     grouped={}
     for day in days:
-        d=date.fromisoformat(day['date'])
+        d=date.fromisoformat(day.get('aligned_date',day['date']))
         key=(d-timedelta(days=d.weekday())).isoformat() if grain=='week' else d.replace(day=1).isoformat()
         grouped.setdefault(key,[]).append(day)
     result=[]
@@ -192,6 +195,8 @@ def group_days(days,grain):
                        'valid_days':sum(d['quality']=='observed' for d in items),'total_days':len(items),'metrics':sums,
                        'quality':'partial' if any(d['quality']!='observed' for d in items) else 'observed',
                        'distribution':'daily_medians'})
+        if alignment is not None:
+            result[-1].update(aligned_date=key,date=items[0]['date'])
     return result
 
 
@@ -201,11 +206,13 @@ def trends(index,start,end,compare='none',grain='day'):
     comparable=[d for d in days if d['date']<today]
     summary=summarize(comparable)
     comparison=None
+    comparison_days=[]
     # Current incomplete day is shown in plots, excluded from period comparisons.
     window=comparison_range(start,comparable[-1]['date'],compare) if comparable else None
     if window and window[0]>='1970-01-01':
         a,b=window; comparison={'from_date':a,'to_date':b}
         previous,previous_rows=day_rows(index,a,b)
+        comparison_days=group_days(previous,grain,alignment=comparable)
         rows+=previous_rows
         baseline=summarize(previous)
         for key,current in summary.items():
@@ -230,6 +237,7 @@ def trends(index,start,end,compare='none',grain='day'):
         day['steps_rolling_mean']=sum(values)/len(values) if values else None
         day['steps_rolling_days']=len(values)
     return dict(metadata(index,rows),days=group_days(days,grain),summary=summary,comparison=comparison,
+                comparison_days=comparison_days,comparison_mode=compare,
                 from_date=start,to_date=end,grain=grain,today=today,
                 summary_range={'from_date':comparable[0]['date'],'to_date':comparable[-1]['date']} if comparable else None,
                 summary_excludes_today=end>=today,comparison_excludes_today=True,quality='index_pending' if any(r['pending'] for r in rows) else 'observed')

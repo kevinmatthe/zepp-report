@@ -109,3 +109,23 @@ def test_coverage_allows_future_grid_but_sync_does_not(client):
     client.put('/api/settings',json={'token':'secret','user_id':'123'},headers=headers)
     assert client.get('/api/coverage?from_date=2099-01-01&to_date=2099-12-31').status_code==200
     assert client.post('/api/sync',json={'from_date':'2099-01-01','to_date':'2099-01-01'},headers=headers).status_code==422
+
+
+def test_export_adds_minute_steps_without_redefining_legacy_sleep(client):
+    import base64,json
+    from zepp_report.normalize import normalize,day_ms
+    login(client)
+    day='2026-09-01';ts=day_ms(day,'Asia/Shanghai')
+    summary={'stp':{'ttl':0},'slp':{'st':ts//1000,'ed':ts//1000+5400,
+        'stage':[{'start':0,'stop':60,'mode':4},{'start':30,'stop':90,'mode':5}]}}
+    raw={'data':[{'date_time':day,'data_type':0,
+        'data':base64.b64encode(bytes([1,2,0])*1440).decode(),
+        'summary':base64.b64encode(json.dumps(summary).encode()).decode()}]}
+    old=normalize('band',day,raw,'Asia/Shanghai');old.pop('steps')
+    client.app.state.store.save(day,'band',raw,old,[])
+    r=client.get('/api/export',params={'from_date':day,'to_date':day});assert r.status_code==200
+    lines={line['metric']['__name__']:line for line in map(json.loads,r.text.splitlines())}
+    assert len(lines['zepp_steps_minute']['values'])==1440
+    assert lines['zepp_sleep_light_minutes_daily']['values']==[60]
+    assert lines['zepp_sleep_deep_minutes_daily']['values']==[60]
+    assert 'zepp_sleep_rem_minutes_daily' not in lines

@@ -23,7 +23,7 @@ def targets():
 def test_metrics_match_exporter_and_cover_all_health_domains():
     used = set()
     allowed = {f'zepp_{key}_{suffix}' for key in SUMMARY_KEYS for suffix in ('daily', 'current')}
-    allowed |= OPS | {'zepp_heart_rate_bpm', 'zepp_stress', 'zepp_spo2_percent'}
+    allowed |= OPS | {'zepp_heart_rate_bpm', 'zepp_stress', 'zepp_spo2_percent', 'zepp_steps_minute'}
     allowed |= {f'zepp_{domain}_type_minutes_{suffix}'
                 for domain in ('activity', 'workout') for suffix in ('daily', 'current')}
     for _, target in targets():
@@ -123,7 +123,7 @@ def test_typed_duration_series_preserve_type_labels_and_freshness():
 
 def test_spo2_has_fresh_today_average_and_daily_and_observed_trends():
     selected = [(p, t) for p, t in targets() if 'zepp_spo2_' in t['expr']]
-    assert len(selected) == 3
+    assert len(selected) == 4
     expressions = ' '.join(t['expr'] for _, t in selected)
     for name in ('zepp_spo2_avg_current', 'zepp_spo2_avg_daily', 'zepp_spo2_percent'):
         assert name in expressions
@@ -135,5 +135,25 @@ def test_spo2_has_fresh_today_average_and_daily_and_observed_trends():
         if '_current' in target['expr']:
             assert panel['gridPos']['y'] < 13 and panel['type'] == 'stat'
         if 'zepp_spo2_percent{' in target['expr']:
-            assert '[5m]' in target['expr']
+            assert ('[1m]' if panel['title'].endswith('· 分钟明细') else '[5m]') in target['expr']
             assert panel['fieldConfig']['defaults']['custom']['spanNulls'] is False
+
+
+def test_fine_detail_panels_bound_samples_to_one_minute_without_carry_forward():
+    panels = [p for p in dashboard()['panels'] if p['title'].endswith('· 分钟明细')]
+    assert len(panels) == 4
+    expected = {'zepp_steps_minute', 'zepp_heart_rate_bpm', 'zepp_stress', 'zepp_spo2_percent'}
+    used = set()
+    for panel in panels:
+        assert panel['interval'] == '1m' and panel['maxDataPoints'] >= 43200
+        target, = panel['targets']
+        expr = target['expr']
+        used |= set(re.findall(r'\bzepp_[a-z0-9_]+\b', expr))
+        assert target['interval'] == '1m'
+        assert 'last_over_time(' in expr and '[1m]' in expr
+        assert 'tlast_over_time(' in expr and '> time() - 60' in expr
+        assert 'rate(' not in expr and 'sum_over_time(' not in expr
+        custom = panel['fieldConfig']['defaults']['custom']
+        assert custom['spanNulls'] is False and custom['lineWidth'] == 0
+        assert '1 分钟' in panel['description'] and 'WebUI' in panel['description']
+    assert used == expected

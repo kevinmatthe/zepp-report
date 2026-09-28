@@ -1,6 +1,6 @@
 """Additive, repeatable analytics schema; original archives/outbox remain authoritative."""
 
-ALGORITHM_VERSION = 3
+ALGORITHM_VERSION = 4
 
 
 def migrate(con):
@@ -48,4 +48,10 @@ def migrate(con):
         UPDATE metric_backfill SET done=0,retry_at=0,error=NULL WHERE kind='band'
             AND NOT EXISTS(SELECT 1 FROM schema_migrations WHERE version=4);
         INSERT OR IGNORE INTO schema_migrations VALUES(4);
+        INSERT OR IGNORE INTO metric_backfill(day,kind)
+            SELECT day,kind FROM records WHERE kind='band'
+            AND NOT EXISTS(SELECT 1 FROM schema_migrations WHERE version=5);
+        UPDATE metric_backfill SET done=0,retry_at=0,error=NULL WHERE kind='band'
+            AND NOT EXISTS(SELECT 1 FROM schema_migrations WHERE version=5);
+        INSERT OR IGNORE INTO schema_migrations VALUES(5);
     ''')

@@ -21,7 +21,7 @@ from .settings import Settings
 from .store import Store
 from .sync import SyncService, dates
 from .normalize import KINDS
-from .metrics import metric_lines, json_lines
+from .metrics import metric_lines, json_lines, ADDITIONAL_SUMMARY_KEYS
 from . import analytics
 from .coverage import coverage, preview
 
@@ -258,6 +258,9 @@ def create_app(data_dir=None,environ=None,start_worker=True):
         def generate():
             for day in dates(start,end):
                 for record in store.days(day,day):
+                    detail=service.analytics.detail(day)
+                    record['steps']=detail['steps']
+                    record['summary'].update({k:detail['summary'][k] for k in ADDITIONAL_SUMMARY_KEYS if k in detail['summary']})
                     yield json_lines(metric_lines(day,record,settings.account,cfg['timezone'],archive=True))
         return StreamingResponse(generate(),media_type='application/x-ndjson',
             headers={'Content-Disposition':f'attachment; filename="zepp-{start}-{end}.jsonl"'})

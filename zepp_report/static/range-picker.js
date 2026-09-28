@@ -7,6 +7,7 @@ function rangePicker(change) {
   let draft = [], preset = null;
   const picker = flatpickr($("range-calendar"), { mode: "range", inline: true, locale: Mandarin, dateFormat: "Y-m-d", ariaDateFormat: "Y年m月d日", disableMobile: true, showMonths: innerWidth >= 768 ? 2 : 1, maxDate: today(state.timezone), onChange: (dates) => {
     preset = null;
+    document.querySelectorAll("[data-preset]").forEach(b=>b.setAttribute("aria-pressed","false"));
     draft = dates.map((d) => flatpickr.formatDate(d, "Y-m-d"));
     sync();
   } });
@@ -20,6 +21,7 @@ function rangePicker(change) {
     sync();
   };
   $("range-open").onclick = () => {
+    preset=null;document.querySelectorAll("[data-preset]").forEach(b=>b.setAttribute("aria-pressed","false"));
     picker.set("maxDate", today(state.timezone));
     picker.set("showMonths", innerWidth >= 768 ? 2 : 1);
     $("include-today").checked = state.to === today(state.timezone);
@@ -32,6 +34,7 @@ function rangePicker(change) {
   $("range-cancel").onclick = () => $("range-dialog").close();
   const selectPreset = (p) => {
     preset = p;
+    document.querySelectorAll("[data-preset]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.preset===p)));
     const actual = today(state.timezone), t = $("include-today").checked ? actual : addDays(actual, -1), y = +actual.slice(0, 4), m = actual.slice(0, 7);
     let a = t, z = t;
     if (/^\d+$/.test(p)) a = addDays(t, 1 - Number(p));

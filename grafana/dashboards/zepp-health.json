@@ -8,7 +8,7 @@
     "victoriametrics"
   ],
   "schemaVersion": 39,
-  "version": 3,
+  "version": 4,
   "editable": true,
   "graphTooltip": 1,
   "timezone": "Asia/Shanghai",
@@ -2490,13 +2490,360 @@
       }
     },
     {
-      "title": "04 / 训练负荷与心肺能力",
+      "id": 45,
+      "title": "04 / 分钟明细 · 设备观测",
       "type": "row",
       "collapsed": false,
       "panels": [],
       "gridPos": {
         "x": 0,
         "y": 90,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 46,
+      "title": "步数 · 分钟明细",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 91,
+        "w": 12,
+        "h": 8
+      },
+      "description": "以 1 分钟查询网格显示最近 60 秒内最后一条设备观测；时间戳保护避免旧样本跨分钟延续，缺失保持空白，不连接观测点。建议缩放到单日；较长范围可能提高查询步长而遗漏中间观测，同一分钟多条观测只取最后一条。完整事件时间与逐条记录见 WebUI 明细。 每个数值为该源分钟内步数，不是累计计数器，不计算速率或跨分钟累加。",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "${DS_VICTORIAMETRICS}"
+      },
+      "interval": "1m",
+      "maxDataPoints": 100000,
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "${DS_VICTORIAMETRICS}"
+          },
+          "expr": "last_over_time(zepp_steps_minute{account=~\"${account:regex}\"}[1m]) and (tlast_over_time(zepp_steps_minute{account=~\"${account:regex}\"}[1m]) > time() - 60)",
+          "legendFormat": "步数",
+          "refId": "A",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "format": "time_series",
+          "interval": "1m"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "暂无数据",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "bars",
+            "lineInterpolation": "linear",
+            "lineWidth": 0,
+            "fillOpacity": 65,
+            "showPoints": "never",
+            "pointSize": 3,
+            "spanNulls": false,
+            "insertNulls": false,
+            "barAlignment": 0,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "axisBorderShow": false
+          },
+          "decimals": 0,
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        }
+      }
+    },
+    {
+      "id": 47,
+      "title": "心率 · 分钟明细",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 12,
+        "y": 91,
+        "w": 12,
+        "h": 8
+      },
+      "description": "以 1 分钟查询网格显示最近 60 秒内最后一条设备观测；时间戳保护避免旧样本跨分钟延续，缺失保持空白，不连接观测点。建议缩放到单日；较长范围可能提高查询步长而遗漏中间观测，同一分钟多条观测只取最后一条。完整事件时间与逐条记录见 WebUI 明细。",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "${DS_VICTORIAMETRICS}"
+      },
+      "interval": "1m",
+      "maxDataPoints": 100000,
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "${DS_VICTORIAMETRICS}"
+          },
+          "expr": "last_over_time(zepp_heart_rate_bpm{account=~\"${account:regex}\"}[1m]) and (tlast_over_time(zepp_heart_rate_bpm{account=~\"${account:regex}\"}[1m]) > time() - 60)",
+          "legendFormat": "心率",
+          "refId": "A",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "format": "time_series",
+          "interval": "1m"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bpm",
+          "noValue": "暂无数据",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 0,
+            "fillOpacity": 0,
+            "showPoints": "always",
+            "pointSize": 3,
+            "spanNulls": false,
+            "insertNulls": false,
+            "barAlignment": 0,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "axisBorderShow": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        }
+      }
+    },
+    {
+      "id": 48,
+      "title": "压力 · 分钟明细",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 99,
+        "w": 12,
+        "h": 8
+      },
+      "description": "以 1 分钟查询网格显示最近 60 秒内最后一条设备观测；时间戳保护避免旧样本跨分钟延续，缺失保持空白，不连接观测点。建议缩放到单日；较长范围可能提高查询步长而遗漏中间观测，同一分钟多条观测只取最后一条。完整事件时间与逐条记录见 WebUI 明细。 压力源记录通常每 5 分钟一次，空白分钟不代表零压力。",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "${DS_VICTORIAMETRICS}"
+      },
+      "interval": "1m",
+      "maxDataPoints": 100000,
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "${DS_VICTORIAMETRICS}"
+          },
+          "expr": "last_over_time(zepp_stress{account=~\"${account:regex}\"}[1m]) and (tlast_over_time(zepp_stress{account=~\"${account:regex}\"}[1m]) > time() - 60)",
+          "legendFormat": "压力",
+          "refId": "A",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "format": "time_series",
+          "interval": "1m"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "暂无数据",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 0,
+            "fillOpacity": 0,
+            "showPoints": "always",
+            "pointSize": 3,
+            "spanNulls": false,
+            "insertNulls": false,
+            "barAlignment": 0,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "axisBorderShow": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        }
+      }
+    },
+    {
+      "id": 49,
+      "title": "血氧 SpO₂ · 分钟明细",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 12,
+        "y": 99,
+        "w": 12,
+        "h": 8
+      },
+      "description": "以 1 分钟查询网格显示最近 60 秒内最后一条设备观测；时间戳保护避免旧样本跨分钟延续，缺失保持空白，不连接观测点。建议缩放到单日；较长范围可能提高查询步长而遗漏中间观测，同一分钟多条观测只取最后一条。完整事件时间与逐条记录见 WebUI 明细。 血氧源观测可能不规则，空白分钟不代表零血氧。",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "${DS_VICTORIAMETRICS}"
+      },
+      "interval": "1m",
+      "maxDataPoints": 100000,
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "${DS_VICTORIAMETRICS}"
+          },
+          "expr": "last_over_time(zepp_spo2_percent{account=~\"${account:regex}\"}[1m]) and (tlast_over_time(zepp_spo2_percent{account=~\"${account:regex}\"}[1m]) > time() - 60)",
+          "legendFormat": "血氧 SpO₂",
+          "refId": "A",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "format": "time_series",
+          "interval": "1m"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "noValue": "暂无数据",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "cyan"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 0,
+            "fillOpacity": 0,
+            "showPoints": "always",
+            "pointSize": 3,
+            "spanNulls": false,
+            "insertNulls": false,
+            "barAlignment": 0,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "axisBorderShow": false
+          },
+          "min": 0,
+          "max": 100,
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        }
+      }
+    },
+    {
+      "title": "05 / 训练负荷与心肺能力",
+      "type": "row",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 107,
         "w": 24,
         "h": 1
       },
@@ -2508,7 +2855,7 @@
       "type": "timeseries",
       "gridPos": {
         "x": 0,
-        "y": 91,
+        "y": 108,
         "w": 12,
         "h": 8
       },
@@ -2606,7 +2953,7 @@
       "type": "timeseries",
       "gridPos": {
         "x": 12,
-        "y": 91,
+        "y": 108,
         "w": 12,
         "h": 8
       },
@@ -2689,7 +3036,7 @@
       "type": "timeseries",
       "gridPos": {
         "x": 0,
-        "y": 99,
+        "y": 116,
         "w": 12,
         "h": 8
       },
@@ -2787,7 +3134,7 @@
       "type": "timeseries",
       "gridPos": {
         "x": 12,
-        "y": 99,
+        "y": 116,
         "w": 12,
         "h": 8
       },
@@ -2900,7 +3247,7 @@
       "type": "timeseries",
       "gridPos": {
         "x": 0,
-        "y": 107,
+        "y": 124,
         "w": 24,
         "h": 7
       },
@@ -2978,13 +3325,13 @@
       }
     },
     {
-      "title": "05 / 数据同步",
+      "title": "06 / 数据同步",
       "type": "row",
       "collapsed": false,
       "panels": [],
       "gridPos": {
         "x": 0,
-        "y": 114,
+        "y": 131,
         "w": 24,
         "h": 1
       },
@@ -2996,7 +3343,7 @@
       "type": "stat",
       "gridPos": {
         "x": 0,
-        "y": 115,
+        "y": 132,
         "w": 4,
         "h": 4
       },
@@ -3066,7 +3413,7 @@
       "type": "stat",
       "gridPos": {
         "x": 4,
-        "y": 115,
+        "y": 132,
         "w": 4,
         "h": 4
       },
@@ -3136,7 +3483,7 @@
       "type": "stat",
       "gridPos": {
         "x": 8,
-        "y": 115,
+        "y": 132,
         "w": 4,
         "h": 4
       },
@@ -3220,7 +3567,7 @@
       "type": "stat",
       "gridPos": {
         "x": 12,
-        "y": 115,
+        "y": 132,
         "w": 4,
         "h": 4
       },
@@ -3290,7 +3637,7 @@
       "type": "stat",
       "gridPos": {
         "x": 16,
-        "y": 115,
+        "y": 132,
         "w": 4,
         "h": 4
       },
@@ -3360,7 +3707,7 @@
       "type": "stat",
       "gridPos": {
         "x": 20,
-        "y": 115,
+        "y": 132,
         "w": 4,
         "h": 4
       },

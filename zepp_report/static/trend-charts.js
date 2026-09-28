@@ -1,10 +1,10 @@
 import {renderMetrics} from "./metric-cards.js";
 import * as echarts from "echarts/core";
-import { LineChart, BarChart } from "echarts/charts";
+import { LineChart, BarChart, ScatterChart } from "echarts/charts";
 import { GridComponent, TooltipComponent, LegendComponent, DataZoomComponent, AriaComponent, GraphicComponent } from "echarts/components";
 import { CanvasRenderer } from "echarts/renderers";
 import { $, number, escape } from "./state.js";
-echarts.use([LineChart, BarChart, GridComponent, TooltipComponent, LegendComponent, DataZoomComponent, AriaComponent, GraphicComponent, CanvasRenderer]);
+echarts.use([LineChart, BarChart, ScatterChart, GridComponent, TooltipComponent, LegendComponent, DataZoomComponent, AriaComponent, GraphicComponent, CanvasRenderer]);
 const charts = /* @__PURE__ */ new Map();
 function resize() {
   charts.forEach((c) => c.resize());

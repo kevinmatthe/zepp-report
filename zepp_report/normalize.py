@@ -59,12 +59,12 @@ def sleep_stage_base(base,slp,timezone):
     return max(candidates)[1]
 
 
-def normalize(kind, day, raw, timezone):
+def normalize(kind, day, raw, timezone, observed_until=None):
     if kind == 'workouts':
         from .workouts import normalize_workouts
         return normalize_workouts(raw, day, timezone)
     low, high = day_bounds(day, timezone)
-    result = {'summary': {}, 'heart_rate': [], 'stress': [], 'spo2': [], 'sleep_stages': []}
+    result = {'summary': {}, 'steps': [], 'activity_samples': [], 'steps_quality': {'status':'missing','message':'上游未提供分钟活动数据'}, 'heart_rate': [], 'stress': [], 'spo2': [], 'sleep_stages': [], 'event_series': {}}
     summary = result['summary']
     if kind == 'band':
         candidates = []
@@ -79,6 +79,8 @@ def normalize(kind, day, raw, timezone):
             base = day_ms(source_day, timezone)
             if source_day == day:
                 copy_numbers(decoded.get('stp', {}), {'ttl':'steps','dis':'distance_meters','cal':'calories'}, summary)
+                from .minute_activity import minute_activity
+                result['steps'],result['activity_samples'],result['steps_quality']=minute_activity(row,base,summary.get('steps'),now_ms=observed_until,day_end=high)
                 hr = base64.b64decode(row.get('data_hr') or '', validate=True)
                 if len(hr) > 1440:
                     raise ValueError('Unexpected heart rate length')
@@ -137,16 +139,21 @@ def normalize(kind, day, raw, timezone):
                     t, v = number(sample.get('time')), number(sample.get('value'))
                     if t is not None and v is not None and low <= t < high and 0 < v <= 100:
                         result['stress'].append({'time': int(t), 'value': v})
-            elif kind == 'training':
-                copy_numbers(row.get('value', {}), {'atl':'atl','ctl':'ctl','tsb':'tsb'}, summary)
-            elif kind == 'trimp':
-                copy_numbers(row.get('value', {}).get('result', {}), {'trimp':'trimp'}, summary)
-            elif kind == 'sport':
-                copy_numbers(row, {'currnetDayTrainLoad':'sport_load', 'wtlSum':'weekly_load',
-                                  'wtlSumOptimalMin':'sport_optimal_min', 'wtlSumOptimalMax':'sport_optimal_max'}, summary)
-            elif kind == 'vo2':
-                # Upstream has no confirmed populated fixture. Preserve unknown schemas raw.
-                copy_numbers(row, {'vo2Max':'vo2_max'}, summary)
+            else:
+                values={}
+                if kind == 'training':
+                    copy_numbers(row.get('value', {}), {'atl':'atl','ctl':'ctl','tsb':'tsb'}, values)
+                elif kind == 'trimp':
+                    copy_numbers(row.get('value', {}).get('result', {}), {'trimp':'trimp'}, values)
+                elif kind == 'sport':
+                    copy_numbers(row, {'currnetDayTrainLoad':'sport_load', 'wtlSum':'weekly_load',
+                                      'wtlSumOptimalMin':'sport_optimal_min', 'wtlSumOptimalMax':'sport_optimal_max'}, values)
+                elif kind == 'vo2':
+                    copy_numbers(row, {'vo2Max':'vo2_max'}, values)
+                summary.update(values)
+                if ts is not None and low<=ts<high:
+                    for key,value in values.items():
+                        result['event_series'].setdefault(key,[]).append({'time':int(ts),'value':value})
     if kind == 'band':
         from .activity import band_activity, activity_minutes, band_sleep_bounds
         from .analytics import sleep_summary
@@ -160,6 +167,8 @@ def normalize(kind, day, raw, timezone):
             summary['actual_sleep_minutes']=sleep['actual_sleep_minutes']
     for field in ('heart_rate', 'stress', 'spo2'):
         result[field] = [{'time': k, 'value': v} for k, v in sorted({x['time']: x['value'] for x in result[field]}.items())]
+    for key,points in result['event_series'].items():
+        result['event_series'][key]=[{'time':t,'value':v} for t,v in sorted({p['time']:p['value'] for p in points}.items())]
     if result['spo2']:
         summary['spo2_avg']=sum(x['value'] for x in result['spo2'])/len(result['spo2'])
     return result

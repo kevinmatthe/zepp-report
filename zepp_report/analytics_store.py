@@ -27,7 +27,7 @@ class AnalyticsStore:
                 'failed':counts.get('failed',0),'ready':counts.get('done',0)}
 
     def _detail(self,day,rows):
-        detail={'date':day,'summary':{},'heart_rate':[],'stress':[],'spo2':[],'sleep_stages':[], 'activities':[], 'workouts':[]}
+        detail={'date':day,'summary':{},'steps':[],'activity_samples':[],'steps_quality':{'status':'missing','message':'上游未提供分钟活动数据'},'heart_rate':[],'stress':[],'spo2':[],'sleep_stages':[], 'activities':[], 'workouts':[], 'event_series':{}}
         sleep_bounds=None
         for row in rows:
             data=json.loads(row['data'])
@@ -36,14 +36,17 @@ class AnalyticsStore:
             for key in ('heart_rate','stress','spo2','sleep_stages'):
                 if data.get(key):
                     detail[key]=data[key]
+            if row['kind'] in ('training','trimp','sport','vo2'):
+                detail['event_series'].update(normalize(row['kind'],day,raw,self.timezone)['event_series'])
             if row['kind']=='workouts':
                 detail['workouts']=data.get('workouts',[])
             if row['kind']=='band':
                 # Reparse additional dimensions without changing archives, tasks, or outbox.
                 sleep_bounds=band_sleep_bounds(raw,day,self.timezone)
-                parsed=normalize('band',day,raw,self.timezone)
+                parsed=normalize('band',day,raw,self.timezone,observed_until=row['updated_at']*1000)
                 detail['summary'].update(parsed['summary'])
-                for key in ('heart_rate','sleep_stages'):
+                detail['steps_quality']=parsed['steps_quality']
+                for key in ('steps','activity_samples','heart_rate','sleep_stages'):
                     if parsed.get(key):
                         detail[key]=parsed[key]
                 summary,episodes=band_activity(raw,day,self.timezone)
@@ -61,7 +64,7 @@ class AnalyticsStore:
         low,high=day_bounds(day,self.timezone)
         detail['coverage']={key:{'observed_minutes':len({int(x['time'])//60000 for x in detail[key] if low<=x['time']<high}),
                                   'expected_minutes':(high-low)//60000,'n':len(detail[key])}
-                            for key in ('heart_rate','stress','spo2')}
+                            for key in ('steps','heart_rate','stress','spo2')}
         detail['profiles']={key:daily_profile(detail[key],self.timezone) for key in ('heart_rate','stress','spo2')}
         return detail
 

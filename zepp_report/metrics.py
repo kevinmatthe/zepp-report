@@ -30,6 +30,7 @@ def metric_lines(day, data, account, timezone, now=None, archive=False):
     for field,name in TYPE_METRICS.items():
         for kind,minutes in data.get(field,{}).items():
             add(f'{name}_{"current" if current else "daily"}',[(ts,minutes)],type=kind)
+    add('zepp_steps_minute',[(p['time'],p['value']) for p in data.get('steps',[])])
     add('zepp_heart_rate_bpm',[(p['time'],p['value']) for p in data.get('heart_rate',[])])
     add('zepp_spo2_percent',[(p['time'],p['value']) for p in data.get('spo2',[])])
     add('zepp_stress',[(p['time'],p['value']) for p in data.get('stress',[])])
@@ -59,9 +60,10 @@ def backfill_additional_metrics(store,account,timezone):
         if job is None:
             return False
         try:
-            record=con.execute('SELECT raw FROM records WHERE day=? AND kind=?',(job['day'],job['kind'])).fetchone()
-            data=normalize(job['kind'],job['day'],json.loads(record['raw']),timezone)
+            record=con.execute('SELECT raw,updated_at FROM records WHERE day=? AND kind=?',(job['day'],job['kind'])).fetchone()
+            data=normalize(job['kind'],job['day'],json.loads(record['raw']),timezone,observed_until=record['updated_at']*1000)
             allowed={f'zepp_{k}_{s}' for k in ADDITIONAL_SUMMARY_KEYS for s in ('daily','current')}
+            allowed.add('zepp_steps_minute')
             allowed.update(name+'_'+s for name in TYPE_METRICS.values() for s in ('daily','current'))
             for line in metric_lines(job['day'],data,account,timezone):
                 if line['metric']['__name__'] not in allowed:

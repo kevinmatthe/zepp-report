@@ -9,34 +9,75 @@ services:
         - HTTP_PROXY
         - HTTPS_PROXY
     image: ${APP_IMAGE:-ghcr.io/kevinmatthe/zepp-report:latest}
-    container_name: zepp-report
     restart: unless-stopped
     stop_grace_period: 60s
     init: true
     environment:
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?请在 .env 中设置至少 12 字符的管理密码}
-      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
       ZEPP_ACCOUNT: ${ZEPP_ACCOUNT:-personal}
       ZEPP_USER_ID: ${ZEPP_USER_ID:-}
       ZEPP_TOKEN: ${ZEPP_TOKEN:-}
       ZEPP_REGION: ${ZEPP_REGION:-global}
       ZEPP_TIMEZONE: ${ZEPP_TIMEZONE:-Asia/Shanghai}
-      VM_IMPORT_URL: ${VM_IMPORT_URL:-http://vminsert:8480/insert/0/prometheus/api/v1/import}
+      VM_IMPORT_URL: ${VM_IMPORT_URL:-http://zepp-vm:8428/api/v1/import}
+      VM_QUERY_URL: ${VM_QUERY_URL:-http://zepp-vm:8428}
+      VM_RETENTION_DAYS: ${VM_RETENTION_DAYS:-3650}
+      VM_DEDUP_INTERVAL_SECONDS: ${VM_DEDUP_INTERVAL_SECONDS:-0.001}
       VM_BEARER_TOKEN: ${VM_BEARER_TOKEN:-}
       DATA_DIR: /app/data
     expose:
       - "8000"
     volumes:
       - ./data:/app/data
-    labels:
-      traefik.enable: "true"
-      traefik.docker.network: homelab-v2
-      traefik.http.routers.zepp-report.rule: 'HostRegexp(`^zepp-report\..+$`)'
-      traefik.http.routers.zepp-report.service: zepp-report
-      traefik.http.services.zepp-report.loadbalancer.server.port: "8000"
-      traefik.http.services.zepp-report.loadbalancer.server.scheme: http
+    # 可选：取消注释并按部署环境配置 Traefik 与下方外部网络。
+    # labels:
+    #   traefik.enable: "true"
+    #   traefik.docker.network: proxy
+    #   traefik.http.routers.zepp-report.rule: 'Host(`zepp.example.com`)'
+    #   traefik.http.routers.zepp-report.service: zepp-report
+    #   traefik.http.services.zepp-report.loadbalancer.server.port: "8000"
+    #   traefik.http.services.zepp-report.loadbalancer.server.scheme: http
 
-networks:
-  default:
-    external: true
-    name: homelab-v2
+  zepp-vm:
+    image: victoriametrics/victoria-metrics:v1.145.0@sha256:c014fb5a711d38cb24fd0673197592cd1394bb903dbb16aea565620c9c8a3d70
+    restart: unless-stopped
+    user: "1000:1000"
+    mem_limit: ${VM_MEMORY_LIMIT:-512m}
+    command:
+      - -storageDataPath=/storage
+      - -retentionPeriod=${VM_RETENTION_DAYS:-3650}d
+      - -dedup.minScrapeInterval=1ms
+      - -inmemoryDataFlushInterval=5s
+    expose:
+      - "8428"
+    volumes:
+      - ./vm-data:/storage
+    labels:
+      traefik.enable: "false"
+
+  zepp-grafana:
+    profiles: [grafana]
+    image: grafana/grafana:13.1.0@sha256:121a7a9ece6dc10b969f1f96eed64b4f07dfac0d0b8abc070f7cb83bbde86f63
+    restart: unless-stopped
+    user: "472:472"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-${ADMIN_PASSWORD}}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_PLUGINS_PREINSTALL_SYNC: victoriametrics-metrics-datasource@0.24.0
+      VM_QUERY_URL: ${VM_QUERY_URL:-http://zepp-vm:8428}
+    expose:
+      - "3000"
+    volumes:
+      - ./grafana-data:/var/lib/grafana
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana/dashboards:/etc/dashboards/zepp-report:ro
+    # 可选：按上方示例添加 Grafana 的 Traefik labels，服务端口为 3000。
+
+# 默认使用 Compose 项目网络。接入现有反向代理时可启用外部网络：
+# networks:
+#   default:
+#     external: true
+#     name: proxy

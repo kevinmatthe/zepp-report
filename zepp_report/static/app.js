@@ -1,4 +1,5 @@
 import "./style.css";
+import { renderVmAudit, retentionLabel } from "./vm-audit.js";
 import { $, state, restore, persist, query, notice, escape, today } from "./state.js";
 import { api, action } from "./api.js";
 import { rangePicker } from "./range-picker.js";
@@ -105,7 +106,7 @@ function fill(s) {
   f.elements.token.value = "";
   $("token-status").textContent = s.token_configured ? "已配置；留空保留当前 Token。" : "尚未配置 Token。";
   $("account-info").textContent = "账号标识：" + (s.account || "未设置");
-  $("vm-info").textContent = "VictoriaMetrics：" + (s.vm_url || "未配置");
+  $("vm-info").textContent = `VictoriaMetrics：${s.vm_url ? "投递已配置" : "投递未配置"} · ${s.vm_query_url ? "读回核对已配置" : "读回核对未配置"} · ${retentionLabel(s.vm_retention_days)}`;
 }
 async function poll() {
   if (!state.active || busy || document.hidden) return;
@@ -115,6 +116,7 @@ async function poll() {
     const s = await api("/api/status");
     if (!state.active) return;
     latestStatus=s;renderSyncSchedule();
+    renderVmAudit(s.vm_audit);
     running = !!(s.tasks?.running || s.tasks?.pending);
     $("connection").textContent = s.auth_required ? "授权待更新" : !s.configured ? "等待配置" : s.worker_alive ? "● 同步在线" : "服务离线";
     $("setup-banner").hidden = !!s.configured && !s.auth_required;

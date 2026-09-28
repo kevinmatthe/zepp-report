@@ -69,7 +69,7 @@ def test_provisioning_and_import_use_native_datasource():
     provisioning = (ROOT / 'grafana/provisioning/datasources/zepp.yaml').read_text()
     assert f'type: {PLUGIN}' in provisioning
     assert 'uid: zepp-victoriametrics' in provisioning
-    assert 'url: http://vmselect:8481/select/0/prometheus' in provisioning
+    assert 'url: ${VM_QUERY_URL}' in provisioning
     provider = (ROOT / 'grafana/provisioning/dashboards/zepp.yaml').read_text()
     assert 'path: /etc/dashboards/zepp-report' in provider
 

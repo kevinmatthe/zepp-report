@@ -9,3 +9,6 @@ artifacts/
 
 node_modules/
 zepp_report/static/dist/
+
+vm-data/
+grafana-data/

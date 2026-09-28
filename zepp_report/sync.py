@@ -11,6 +11,7 @@ from .client import AuthError, UpstreamError, ZeppClient
 from .normalize import KINDS, normalize
 from .analytics_store import AnalyticsStore
 from .metrics import metric_lines, sample_lines, json_lines, backfill_additional_metrics
+from .vm_audit import VMAuditor
 
 
 def dates(start,end):
@@ -27,12 +28,16 @@ class SyncService:
         self.operation=threading.RLock()
         self.thread=None
         self.analytics_thread=None
+        self.audit_thread=None
         self.analytics=AnalyticsStore(store,settings.snapshot()['timezone'])
+        # Querying and delivery run concurrently; each owns its HTTP session.
+        self.vm_audit=VMAuditor(settings,store)
         self.lock_file=None
         self.next_flush=0
         self.vm_failures=0
         self.vm_error=None
         self.worker_error=None
+        self.audit_worker_error=None
         self.next_telemetry=0
 
     def schedule(self):
@@ -141,11 +146,13 @@ class SyncService:
         self.next_flush=0
 
     def status(self):
-        return dict(self.store.stats(), analytics=self.analytics.status(), configured=self.settings.public()['configured'],
+        return dict(self.store.stats(), analytics=self.analytics.status(), vm_audit=self.vm_audit.status(),
+            configured=self.settings.public()['configured'],
             auth_required=self.store.meta('auth_required',False),
             worker_alive=bool(self.thread and self.thread.is_alive()),
+            audit_worker_alive=bool(self.audit_thread and self.audit_thread.is_alive()),
             last_success=self.store.meta('last_success'),next_sync=self.store.meta('next_sync'),
-            vm_error=self.vm_error,worker_error=self.worker_error)
+            vm_error=self.vm_error,worker_error=self.worker_error,audit_worker_error=self.audit_worker_error)
 
     def run(self):
         recover_needed=False
@@ -181,6 +188,23 @@ class SyncService:
                     pass
                 self.stop_event.wait(5)
 
+    def run_audit(self):
+        # VM verification depends on the archive and VM credentials, not Zepp auth.
+        recover_needed=False
+        while not self.stop_event.is_set():
+            try:
+                if recover_needed:
+                    self.vm_audit.recover()
+                    recover_needed=False
+                self.vm_audit.schedule()
+                worked=self.vm_audit.tick()
+                self.audit_worker_error=None
+                self.stop_event.wait(.3 if worked else 2)
+            except Exception:
+                recover_needed=True
+                self.audit_worker_error='VM 核对后台处理失败，正在重试；请检查数据目录空间与权限'
+                self.stop_event.wait(5)
+
     def start(self):
         self.lock_file=open(self.settings.directory/'worker.lock','a')
         try:
@@ -189,17 +213,22 @@ class SyncService:
             self.lock_file.close()
             raise RuntimeError('此数据目录已有同步进程；请使用单实例、单 worker') from None
         self.store.recover()
+        self.vm_audit.recover()
         self.thread=threading.Thread(target=self.run,name='zepp-sync',daemon=True)
         self.thread.start()
         self.analytics_thread=threading.Thread(target=self.run_analytics,name='zepp-analytics',daemon=True)
         self.analytics_thread.start()
+        self.audit_thread=threading.Thread(target=self.run_audit,name='zepp-vm-audit',daemon=True)
+        self.audit_thread.start()
 
     def stop(self):
+        # One budget for all joins leaves headroom within the 60-second container grace.
+        deadline=time.monotonic()+55
         self.stop_event.set()
-        if self.thread:
-            self.thread.join(timeout=45)
-        if self.analytics_thread:
-            self.analytics_thread.join(timeout=10)
+        workers=(self.thread,self.analytics_thread,self.audit_thread)
+        for worker in workers:
+            if worker:
+                worker.join(timeout=max(0,deadline-time.monotonic()))
         # Do not release singleton lock while an in-flight worker still owns state.
-        if self.lock_file and not (self.thread and self.thread.is_alive()):
+        if self.lock_file and not any(worker and worker.is_alive() for worker in workers):
             self.lock_file.close()

@@ -1,5 +1,6 @@
 """Validated local settings; secret fields never enter public responses."""
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -25,10 +26,22 @@ class Settings:
         self.account = env.get('ZEPP_ACCOUNT','personal')
         if not re.fullmatch(r'[a-zA-Z0-9_-]{1,40}',self.account):
             raise ValueError('ZEPP_ACCOUNT must be a short ASCII identifier')
-        self.vm_url = env.get('VM_IMPORT_URL','http://vminsert:8480/insert/0/prometheus/api/v1/import')
+        self.vm_url = env.get('VM_IMPORT_URL','http://zepp-vm:8428/api/v1/import')
         parsed = urlsplit(self.vm_url)
         if parsed.scheme not in ('http','https') or not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment:
             raise ValueError('VM_IMPORT_URL 必须是不含凭据和查询参数的 HTTP(S) 地址')
+        self.vm_query_url = env.get('VM_QUERY_URL','').rstrip('/')
+        if self.vm_query_url:
+            parsed=urlsplit(self.vm_query_url)
+            if parsed.scheme not in ('http','https') or not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment:
+                raise ValueError('VM_QUERY_URL 必须是不含凭据和查询参数的 HTTP(S) 地址')
+        retention=env.get('VM_RETENTION_DAYS','')
+        self.vm_retention_days=int(retention) if retention else None
+        if self.vm_retention_days is not None and not 1<=self.vm_retention_days<=36500:
+            raise ValueError('VM_RETENTION_DAYS 必须为 1–36500')
+        self.vm_dedup_seconds=float(env.get('VM_DEDUP_INTERVAL_SECONDS','0'))
+        if not math.isfinite(self.vm_dedup_seconds) or not 0<=self.vm_dedup_seconds<=3600:
+            raise ValueError('VM_DEDUP_INTERVAL_SECONDS 必须为 0–3600')
         self.vm_token = env.get('VM_BEARER_TOKEN','')
         self.cookie_secure = env.get('COOKIE_SECURE','true').lower() == 'true'
         self._values = DEFAULTS.copy()
@@ -67,7 +80,7 @@ class Settings:
         result=self.snapshot()
         result['token_configured']=bool(result.pop('token'))
         result['configured']=bool(result['user_id'] and result['token_configured'])
-        result.update(account=self.account,vm_url=self.vm_url)
+        result.update(account=self.account,vm_url=self.vm_url,vm_query_url=self.vm_query_url,vm_retention_days=self.vm_retention_days,vm_dedup_seconds=self.vm_dedup_seconds)
         return result
 
     def update(self, changes, has_data):

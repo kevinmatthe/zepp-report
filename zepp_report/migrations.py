@@ -54,4 +54,28 @@ def migrate(con):
         UPDATE metric_backfill SET done=0,retry_at=0,error=NULL WHERE kind='band'
             AND NOT EXISTS(SELECT 1 FROM schema_migrations WHERE version=5);
         INSERT OR IGNORE INTO schema_migrations VALUES(5);
+        CREATE TABLE IF NOT EXISTS vm_audits (
+            day TEXT PRIMARY KEY,state TEXT NOT NULL DEFAULT 'pending',
+            generation INTEGER NOT NULL DEFAULT 1,next_check REAL NOT NULL DEFAULT 0,
+            last_checked REAL,error TEXT,missing INTEGER NOT NULL DEFAULT 0,
+            conflicts INTEGER NOT NULL DEFAULT 0,repaired INTEGER NOT NULL DEFAULT 0,
+            total INTEGER NOT NULL DEFAULT 0);
+        CREATE INDEX IF NOT EXISTS vm_audits_due ON vm_audits(state,next_check);
+        CREATE TRIGGER IF NOT EXISTS vm_sample_insert AFTER INSERT ON samples
+        WHEN NEW.day!='' AND NEW.kind!='system'
+        BEGIN
+            INSERT INTO vm_audits(day,next_check) VALUES(NEW.day,strftime('%s','now')+15)
+            ON CONFLICT(day) DO UPDATE SET generation=generation+1,state='pending',error=NULL,next_check=strftime('%s','now')+15;
+        END;
+        CREATE TRIGGER IF NOT EXISTS vm_sample_revision AFTER UPDATE OF value,conflict ON samples
+        WHEN NEW.day!='' AND NEW.kind!='system' AND (OLD.value!=NEW.value OR OLD.conflict!=NEW.conflict)
+        BEGIN
+            INSERT INTO vm_audits(day,next_check) VALUES(NEW.day,strftime('%s','now')+15)
+            ON CONFLICT(day) DO UPDATE SET generation=generation+1,state='pending',error=NULL,next_check=strftime('%s','now')+15;
+        END;
+        INSERT OR IGNORE INTO vm_audits(day)
+            SELECT DISTINCT day FROM samples WHERE day!='' AND kind!='system'
+            AND NOT EXISTS(SELECT 1 FROM schema_migrations WHERE version=6);
+        INSERT OR IGNORE INTO schema_migrations VALUES(6);
+
     ''')

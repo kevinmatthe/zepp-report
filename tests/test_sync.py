@@ -2,6 +2,7 @@ import json
 from datetime import datetime
 from zoneinfo import ZoneInfo
 import requests
+import pytest
 from zepp_report.settings import Settings
 from zepp_report.store import Store
 from zepp_report.sync import SyncService
@@ -164,3 +165,107 @@ def test_transient_database_failure_does_not_strand_running_task(tmp_path):
     service.run()
     assert store.stats()['tasks']['running']==0
     assert store.stats()['tasks']['done']==1
+
+
+def test_independent_vm_audit_recovers_and_verifies_while_zepp_token_is_expired(tmp_path):
+    import threading
+    from datetime import timedelta
+    from zepp_report.normalize import day_ms
+
+    settings,store=setup(tmp_path)
+    settings.vm_query_url='http://vm:8428'
+    day=(datetime.now(ZoneInfo(settings.snapshot()['timezone'])).date()-timedelta(days=1)).isoformat()
+    line={'metric':{'__name__':'zepp_steps_daily','account':'personal'},'values':[123],
+          'timestamps':[day_ms(day,settings.snapshot()['timezone'])]}
+    store.save(day,'band',{}, {'summary':{'steps':123}},[line])
+    store.attempted([row['id'] for row in store.pending()])
+    store.ack([row['id'] for row in store.pending()])
+    with store.connect() as con:
+        con.execute("UPDATE vm_audits SET state='running',next_check=9999999999")
+    service=SyncService(settings,store,client_factory=lambda _:Client(),transport=VM())
+    store.set_meta('auth_required',True)
+    store.set_meta('auth_fingerprint',service.credential_fingerprint())
+    queried=threading.Event()
+    class ExportResponse:
+        status_code=200
+        def iter_content(self,chunk_size):
+            yield json.dumps(line).encode()
+        def close(self): queried.set()
+    class QueryVM:
+        def get(self,*args,**kwargs): return ExportResponse()
+    service.vm_audit.transport=QueryVM()
+    try:
+        service.start()
+        assert service.audit_thread.is_alive()
+        assert queried.wait(3), 'audit did not run independently while Zepp auth was paused'
+    finally:
+        service.stop()
+    status=service.status()
+    assert status['auth_required'] is True
+    assert status['vm_audit']['states']['verified']==1
+    assert status['vm_audit']['missing_samples']==0
+    assert not service.audit_thread.is_alive()
+    assert service.lock_file.closed
+
+
+def test_audit_worker_retries_recovery_after_transient_disk_failure(tmp_path):
+    import sqlite3
+    settings,store=setup(tmp_path)
+    service=SyncService(settings,store,transport=VM())
+    calls={'tick':0,'recover':0,'schedule':0}
+    class Auditor:
+        def schedule(self): calls['schedule']+=1
+        def tick(self):
+            calls['tick']+=1
+            if calls['tick']==1: raise sqlite3.OperationalError('disk temporarily unavailable')
+            return False
+        def recover(self):
+            calls['recover']+=1
+            if calls['recover']==1: raise sqlite3.OperationalError('still unavailable')
+    class Stop:
+        count=0
+        def is_set(self): return self.count>=3
+        def wait(self,_): self.count+=1
+    service.vm_audit=Auditor()
+    service.stop_event=Stop()
+    service.run_audit()
+    assert calls=={'tick':2,'recover':2,'schedule':2}
+    assert service.audit_worker_error is None
+
+
+def test_shutdown_uses_shared_budget_and_keeps_lock_until_every_worker_exits(tmp_path,monkeypatch):
+    import fcntl
+    import zepp_report.sync as sync_module
+    settings,store=setup(tmp_path)
+    service=SyncService(settings,store,transport=VM())
+    clock=[0.0]
+    monkeypatch.setattr(sync_module.time,'monotonic',lambda:clock[0])
+    budgets=[]
+    class Worker:
+        def __init__(self,remaining): self.remaining=remaining
+        def is_alive(self): return self.remaining>0
+        def join(self,timeout):
+            budgets.append(timeout)
+            elapsed=min(timeout,self.remaining)
+            clock[0]+=elapsed
+            self.remaining-=elapsed
+    service.thread=Worker(40)
+    service.analytics_thread=Worker(20)
+    service.audit_thread=Worker(30)
+    service.lock_file=open(settings.directory/'worker.lock','a')
+    fcntl.flock(service.lock_file,fcntl.LOCK_EX|fcntl.LOCK_NB)
+    try:
+        service.stop()
+        assert clock[0]<=55
+        assert budgets==[55,15,0]
+        assert not service.lock_file.closed
+        with open(settings.directory/'worker.lock','a') as probe:
+            with pytest.raises(BlockingIOError): fcntl.flock(probe,fcntl.LOCK_EX|fcntl.LOCK_NB)
+        service.analytics_thread.remaining=0
+        service.audit_thread.remaining=0
+        service.stop()
+        assert service.lock_file.closed
+        with open(settings.directory/'worker.lock','a') as probe:
+            fcntl.flock(probe,fcntl.LOCK_EX|fcntl.LOCK_NB)
+    finally:
+        service.lock_file.close()

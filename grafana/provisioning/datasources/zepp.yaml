@@ -4,7 +4,7 @@ datasources:
     uid: zepp-victoriametrics
     type: victoriametrics-metrics-datasource
     access: proxy
-    url: http://vmselect:8481/select/0/prometheus
+    url: ${VM_QUERY_URL}
     isDefault: false
     editable: true
     jsonData:

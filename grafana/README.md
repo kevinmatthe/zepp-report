@@ -1,86 +1,78 @@
-# Zepp Grafana 健康看板
+# Zepp Grafana 看板
 
-`dashboards/zepp-health.json` 可直接导入，也可由现有 Grafana 文件 provisioning 加载。
-本目录只提供配置，不会修改正在运行的 Grafana 或 VictoriaMetrics。
+本目录提供原生 VictoriaMetrics 数据源配置和 `dashboards/zepp-health.json` 健康看板。既可随仓库的一体化 Compose 启动，也可导入已有 Grafana。
 
-## 直接导入（复用现有数据源）
+## 可选的一体化 Grafana
 
-1. 在 Grafana 安装官方 **VictoriaMetrics** 插件，插件 ID 为 `victoriametrics-metrics-datasource`。
-2. 已有该类型数据源时直接复用；新建时填写集群查询地址 `http://vmselect:8481/select/0/prometheus`（tenant 0）。这必须是 **Grafana 容器可达**的地址。
+先完成根目录 [部署配置](../README.md)，再启用 profile：
+
+```sh
+sudo install -d -m 700 -o 472 -g 472 grafana-data
+chmod -R a+rX grafana
+docker compose --profile grafana pull
+docker compose --profile grafana up -d --no-build
+```
+
+服务名为 `zepp-grafana`，profile 名为 `grafana`；端口映射或服务级命令应使用服务名。默认拉取已发布镜像，无需本地构建。
+
+Compose 自动安装 `victoriametrics-metrics-datasource` 原生插件，并通过 provisioning 加载数据源和看板。插件首次安装需要网络。数据源通过 `VM_QUERY_URL` 配置，默认指向同网络的 `http://zepp-vm:8428`，UID 为 `zepp-victoriametrics`，不会设为 Grafana 全局默认。
+
+默认仅 expose 容器端口 `3000`，没有宿主机端口。自行添加端口映射或反代后访问。初始用户名为 `admin`；密码为 `GRAFANA_ADMIN_PASSWORD`，未配置则使用 `ADMIN_PASSWORD`。已有 Grafana 数据库不会随环境变量自动重置密码。
+
+`./grafana-data` 持久化 Grafana 数据，属主 UID/GID 为 `472:472`。仓库中的 `grafana` 配置目录须对容器 UID 472 可读，可执行 `chmod -R a+rX grafana`；该目录仅放公开配置，不放凭据。若存在继承 ACL，检查其是否阻止读取或目录遍历。不要对 `.env` 或持久数据目录执行此公开权限命令。看板文件由仓库管理；界面编辑不会写回 JSON。修改仓库文件后由 provider 定期重载。
+
+## 使用已有 Grafana 或外部 VM
+
+1. 安装插件 `victoriametrics-metrics-datasource`。
+2. 创建该类型的数据源，填写 **Grafana 容器可达**的查询根地址。单机示例：`http://zepp-vm:8428`；集群示例：`http://vmselect:8481/select/0/prometheus`。不要填写导入端点。
 3. 在 **Dashboards → New → Import** 上传 `dashboards/zepp-health.json`。
-4. 导入后，在看板顶部「数据源」下拉框选择已有的原生 VictoriaMetrics 数据源，再选择账户（默认 `personal`）并保存。
-   下拉框使用数据源变量，不要求已有数据源使用本项目 UID；勿选择 Prometheus 类型的数据源。
+4. 在顶部「数据源」选择原生 VictoriaMetrics 数据源，并选择与应用 `ZEPP_ACCOUNT` 一致的账号标签。
 
-## 文件 provisioning（复用现有挂载）
+不要求已有数据源使用本项目 UID。使用文件 provisioning 时，将 `provisioning/datasources/zepp.yaml` 与 `provisioning/dashboards/zepp.yaml` 挂载到 Grafana 对应 provisioning 目录，将看板目录挂载到 provider 指定的 `/etc/dashboards/zepp-report`。仓库数据源配置使用 `${VM_QUERY_URL}`，使用外部 VM 时应设置 Grafana 容器的该环境变量；复制到已有 Grafana 时也可改为实际查询地址，不要覆盖其他项目配置。
 
-现有宿主机 provisioning 目录为：
+## 面板与数据含义
 
-- `/mnt/RapidPool/DockerStacks/stacks/homelab/grafana/provisioning/datasources`
-- `/mnt/RapidPool/DockerStacks/stacks/homelab/grafana/provisioning/dashboards`
+看板包含今日概览、活动与步数、心率/压力/血氧、睡眠、训练及同步状态，使用原生 Stat、Time series 和 Row 面板。
 
-将本目录 `provisioning/datasources/zepp.yaml`、`provisioning/dashboards/zepp.yaml` 分别放入以上目录，保留其他服务的文件。
-若已手动配置数据源，可只安装 dashboard provider，在看板中选择现有数据源。
-数据源 provisioning 默认创建 `Zepp VictoriaMetrics`，固定 UID 为 `zepp-victoriametrics`，不会设为全局默认。
+- 今日卡片固定展示今天，不随历史时间范围改变；旧快照不会冒充今日数据。
+- 日报按本地日期展示，缺失日期保持空白。实际睡眠与包含清醒或缺段的记录跨度不同。
+- 心率与压力 P10/P50/P90 使用前 24 小时原始观测的滚动分位数，最小查询步长 1 小时；不是 Web UI 自然日统计。
+- 分钟明细每条序列目标约 2000 点，最小区间 1 分钟。步数使用区间求和，心率、压力和血氧使用区间均值、最低值和最高值；长范围自动增大区间，放大到单日恢复分钟精度。
+- 缺失区间不补零，真实零步数保留；时间戳保护避免旧值延续到没有观测的区间。完整原始时间和值可在 Web UI 单日分页表查看。
+- `zepp_steps_minute` 是该分钟步数，不是累计 counter。日常活动片段与运动记录分别统计，不能直接相加。
+- 训练保留负 TSB；未识别字段和未采集数据不构造虚假值。所有健康查询按 `account` 过滤。
+- 同步状态只回看短时间窗口，导出器停止后显示未知。HTTP 投递成功并不证明 VM 已持久保存；读回核对、补投和冲突状态以 Web UI 同步页为准。
 
-现有 Grafana 已将宿主机 `homelab/grafana/panels` 挂载到 `/etc/dashboards`。
-在宿主机 panels 目录中新建 `zepp-report` 子目录，放入 `dashboards/zepp-health.json`，即可对应 provider 的 `/etc/dashboards/zepp-report`，无需修改现有挂载。
+看板日界线固定为 **Asia/Shanghai (UTC+8)**。原生插件须支持 `utcOffsetSec`；通过 Query Inspector 检查日报 `step=86400`、起点为当地零点。修改应用时区时，应同时调整看板时区、查询中的固定偏移 `28800` 和目标 `utcOffsetSec`；夏令时区域还需处理日长变化。
 
-在现有 Grafana 实例安装插件后，按现有运维流程重启该 Grafana 服务以加载数据源配置；dashboard provider 每 30 秒检查文件。
-文件管理的看板请修改仓库 JSON；Grafana UI 的修改不会写回文件。
+不要将分钟面板 `maxDataPoints` 大幅提高以强行返回长范围原始点；实际查询步长受插件取整影响，可能超过 VM 每序列点数限制。应缩短时间范围或保持自适应区间聚合。
 
-插件安装、数据源格式参考 [VictoriaMetrics 官方文档](https://docs.victoriametrics.com/victoriametrics/victoriametrics-datasource/)，provider 机制参考 [Grafana 官方 provisioning 文档](https://grafana.com/docs/grafana/latest/administration/provisioning/)。
+## 保留期、冲突与恢复
 
-## 数据语义与面板
+内置单机 VM 默认保留 **3650 天（10 年）**，由 `VM_RETENTION_DAYS` 控制，容器内存上限 `VM_MEMORY_LIMIT` 默认为 `512m`；外部 VM 必须自行配置实际保留期。超期日期在应用中属于正常过期，不是同步失败。SQLite 原始归档仍保留，但看板无法查询已经被 VM 删除的样本。
 
-- 顶部两行八张大数字卡片：今日步数、实际睡眠、静息心率、平均血氧、平均压力、运动时长、运动次数和睡眠评分；固定展示今天，不随历史范围改变。
-- 第一屏趋势：步数和实际睡眠／总睡眠，随后为心率与压力的滚动 24 小时 P10／P50／P90 曲线，以及每日静息心率、压力和睡眠评分。
-- 血氧：独立血氧 API 观测形成今日平均血氧卡片、每日平均 SpO₂ 趋势和原始观测曲线；使用原始事件时间，单位为 0–100% 的百分数，不设医学阈值，无数据保持为空。原始曲线每点回看 5 分钟。
-- 活动构成：步行／跑步时长、运动时长与次数、活动／运动类型堆叠时长、总距离／跑步距离与热量。类型标签保留未知代码；日常活动与独立运动记录是不同来源，不应相加。
-- 睡眠与观测：深睡／浅睡／REM／清醒阶段；心率与压力设备观测查询点回看 5 分钟。实际睡眠为深睡＋浅睡＋REM，睡眠总时长另含清醒，按醒来日期归档。
-- 分钟明细：分钟步数、心率、压力和血氧的独立面板，建议缩放到单日查看。分钟步数是该分钟的实际步数，不是累计计数器。
-- 训练：ATL、CTL、TSB、TRIMP、运动负荷、周负荷、最佳区间、VO₂ max；保留负 TSB。
-- 同步：待同步任务、失败任务、认证状态、导出积压、冲突和距上次成功的时间。
+应用周期读回并补投缺失样本；同时间戳值冲突不会通过删除历史自动解决。重建时从 Web UI 导出所需完整日期区间，导入保留期足够的新实例或新租户，核验后切换数据源。推荐截止昨天，避免进行中的当日汇总。不要通过清空共享 VM 修复单个账号。
 
-分位曲线使用 `quantile_over_time(0.1|0.5|0.9, metric[24h])`，每点对之前 24 小时的原始设备观测计算分布，最小查询步长 1 小时。
-这是**滚动窗口**，不是上海时间自然日的 SQLite 日报分位数；P50 是中位数。没有观测的窗口保持空白，少量观测仍可能产生分位数。
-分钟明细将每条序列的目标点数控制在约 2,000 点，插件按时间范围自动计算步长，最小为 1 分钟。区间使用 `$__interval`，并以 `$__interval_ms` 做时间戳保护，避免旧值延续到没有观测的区间。步数用 `sum_over_time` 汇总该区间已记录的步数；心率、压力和血氧分别显示区间均值、最低值和最高值，保留峰谷。放大到单日恢复分钟精度；长范围使用更宽区间，不再强制返回几十万点。缺失区间不补零，真实零步数保留；完整原始时间戳和逐条数据仍在 WebUI 明细表中。
+备份与恢复遵循根目录说明；SQLite 在线备份不包含 VM 或 Grafana 数据。持久目录冷备份前停止相应服务。
 
-当前 VM 限制每条序列最多 30,000 点。不要把 `maxDataPoints` 设为 100,000；插件会对步长取整，实际点数也可能高于设置值，因此配置预算要留余量。该设置与区间语义已通过线上同版本原生插件的 1/30/90/365 天查询验证。
+## 故障排查与校验
 
-原始 5 分钟回看记录图仍保留，方便缩短时间范围核对。分位含义参考 [VictoriaMetrics quantile_over_time](https://docs.victoriametrics.com/victoriametrics/metricsql/#quantile_over_time)。
-
-版式分为六个可折叠章节，共 49 个面板（包括章节行与说明），使用原生 Stat、Time series 和 Row 面板，不依赖额外可视化插件。
-看板 UID 保持 `zepp-health`，仓库数据源变量仍默认 `zepp-victoriametrics`；部署时可选择已有的数据源。
-
-所有查询按 `account` 过滤。无数据保持为空，不用零替代。
-历史 `*_daily` 是每天本地零点的一条汇总；使用 `last_over_time(...[1d])` 并校验原样本仍属于查询点的同一天，避免缺失日沿用前一天。
-历史查询最小步长为 `1d`，较大 `maxDataPoints` 保留日粒度，柱图不连接空白。
-`*_current` 卡片使用 `@ now()` 的即时查询和当日零点过滤；选择历史范围也仍展示真正的今日快照，昨天的旧快照不会混入今日。
-同步状态只回看 3 分钟，导出器停止后呈现未知而不是永久显示正常。
-
-本看板日界线固定为 **Asia/Shanghai (UTC+8)**，与默认应用时区一致。
-原生插件应支持按看板 UTC offset 对齐范围查询；用 Query Inspector 确认每日查询 `step=86400`，`start` 为上海时间零点。
-当前环境已安装该原生插件 0.24.0，并包含 `utcOffsetSec` 支持；本次没有修改或重启现有 Grafana。
-旧版插件若忽略时区对齐，请升级；否则图上采样时刻可能为上海时间 08:00。
-修改应用时区时，须同时修改看板 `timezone`、查询中的 `28800` 和目标的 `utcOffsetSec`；有夏令时的时区还需专门处理日长变化，不能只替换固定偏移量。
-[MetricsQL 的 rollup 和时间函数说明](https://docs.victoriametrics.com/victoriametrics/metricsql/)描述了这些查询的基础语义。
-
-## 保留期与重建
-
-现有 VictoriaMetrics 保留期为 **180 天**。看板不能恢复已经超出保留期的数据；SQLite 原始归档是长期历史来源。
-通过应用的归档导出器导出 SQLite 历史，再导入到**新 tenant**，然后为该 tenant 新建／修改 Grafana 数据源。
-集群导入地址为 `http://vminsert:8480/insert/<新tenant>/prometheus/api/v1/import`，查询地址对应 `http://vmselect:8481/select/<新tenant>/prometheus`。
-重建时目标 VM 保留期也必须覆盖所导出的历史，否则旧样本可能立即被丢弃。
-既有 tenant 中相同时间戳的修正可能冲突，不应假设重复导入能安全覆盖。
-本项目不会自动删除 VM 数据；不要为重建清空已有 tenant。
-
-## 校验
+先检查数据源连接、账号标签和时间范围，再使用 Query Inspector 查看实际查询。HTTP 422 可由点数上限或查询参数造成；不要先把缺失替换为零。旧插件忽略时区偏移时升级原生插件。插件安装失败时检查 Grafana 容器日志和网络；目录写入失败时检查 UID 472 权限。
 
 ```sh
 python3 -m pytest tests/test_grafana.py -q
 ```
 
-测试验证指标与导出 schema 一致、全部日报指标覆盖、账户过滤、稀疏数据与跨日保护、原生数据源配置、无重叠布局，以及概览优先级、类型标签和滚动分位语义。
-配置文件检查不替代真实 Grafana 插件渲染验收：部署后还需检查数据源连接、账户选项，以及有数据／缺失日的查询结果。
+配置测试覆盖指标 schema、账号过滤、缺失与跨日保护、原生数据源、布局和聚合口径。可选真实插件回归：
 
-可用 `scripts/integration_grafana.py --image <本地Grafana镜像> --plugin-dir <已安装VM插件目录> --network <Docker网络> --vm-url <VM查询地址>` 执行真实插件回归。它创建隔离的临时 Grafana，不发布宿主机端口；只读查询指定 VM，验证原问题可复现及各范围修复有效，结束后清理测试容器与目录。
+```sh
+python3 scripts/integration_grafana.py \
+  --image <本地Grafana镜像> \
+  --plugin-dir <已安装VM插件目录> \
+  --network <Docker网络> \
+  --vm-url <VM查询地址>
+```
+
+该脚本创建隔离临时 Grafana，只读查询目标 VM，不发布宿主机端口，结束后清理测试资源。配置测试不能替代真实插件与数据源验证。
+
+参考：[VictoriaMetrics 原生数据源](https://docs.victoriametrics.com/victoriametrics/victoriametrics-datasource/)、[Grafana provisioning](https://grafana.com/docs/grafana/latest/administration/provisioning/)、[MetricsQL](https://docs.victoriametrics.com/victoriametrics/metricsql/)。

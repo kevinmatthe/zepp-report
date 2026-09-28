@@ -7,6 +7,7 @@ const path = require("node:path");
   try {
     const page = await browser.newPage();
     const errors = [], queries = [], writes = [];
+    let vmAudit={configured:true,retention_days:3650,interval_minutes:30,states:{verified:20,pending:2,waiting:1,expired:4},last_checked:1700000000,missing_samples:3,conflict_samples:0,repaired_samples:8,error:null};
     let dailySteps=7500, oxygenMissing=false,denseRaw=false;
     page.on("pageerror", (e) => errors.push(e.message));
     await page.route("http://zepp.test/**", async (r) => {
@@ -18,8 +19,8 @@ const path = require("node:path");
         return reply({ queued: 6, total: 12, done: 6, unrequested: 6 });
       }
       queries.push(p + u.search);
-      if (p === "/api/settings") return reply({ timezone: "Asia/Shanghai", user_id: "fixture", token_configured: true, interval_minutes:45, lookback_days:4 });
-      if (p === "/api/status") return reply({ configured: true, worker_alive: true, tasks: { done: 6 }, analytics: { ready: 30 }, last_success:1700000000, next_sync:Math.floor(Date.now()/1000)+120 });
+      if (p === "/api/settings") return reply({ timezone: "Asia/Shanghai", user_id: "fixture", token_configured: true, interval_minutes:45, lookback_days:4,vm_url:"https://secret:password@vm.test/write",vm_query_url:"https://secret:password@vm.test/query",vm_retention_days:3650 });
+      if (p === "/api/status") return reply({ configured: true, vm_audit:vmAudit, worker_alive: true, tasks: { done: 6 }, analytics: { ready: 30 }, last_success:1700000000, next_sync:Math.floor(Date.now()/1000)+120 });
       if (p === "/api/tasks") return reply({tasks:[{day:"2026-09-06",kind:"band",status:"failed",attempts:2,updated_at:1700000000,error:"fixture"}],total:25,offset:Number(u.searchParams.get("offset"))});
       if (p === "/api/coverage") return reply({ today: "2026-09-28", days: Array.from({ length: 28 }, (_, i) => ({ date: `2026-09-${String(i + 1).padStart(2, "0")}`, status: i === 5 ? "running" : i === 6 ? "failed" : "done", expected: 6, archived: 6, counts: { done: 6 }, tasks: [{ kind: "band", status: "done", archived: true, has_data: true }] })) });
       if (p === "/api/analytics/profile") {
@@ -199,6 +200,22 @@ const path = require("node:path");
     assert.equal(await page.locator("#range-dialog").isVisible(), true, "overlong range rejected");
     await page.locator("#range-cancel").click();
     await page.locator('[data-nav="sync"]').click();
+    assert.ok((await page.locator('#vm-audit').textContent()).includes('自动每 30 分钟核对'));
+    assert.ok((await page.locator('#vm-audit').textContent()).includes('已读回核对20 天'));
+    assert.ok((await page.locator('#vm-audit').textContent()).includes('等待补齐核对1 天'));
+    assert.ok((await page.locator('#vm-audit').textContent()).includes('正常过期4 天'));
+    assert.equal(await page.locator('#vm-audit-error').innerText(),'','expiration is not a failure');
+    vmAudit={configured:false,states:{}};await page.locator('#refresh').click();
+    await page.waitForFunction(()=>document.querySelector('#vm-audit-policy').textContent.includes('未配置'));
+    assert.equal(await page.locator('#vm-audit-states').textContent(),'','disabled audit does not claim verification');
+    vmAudit={configured:true,retention_days:3650,interval_minutes:30,states:{verified:22},last_checked:1700000000,missing_samples:0,conflict_samples:0,repaired_samples:8,error:null};
+    await page.locator('#refresh').click();
+    await page.waitForFunction(()=>document.querySelector('#vm-audit-states').textContent.includes('22 天'));
+    await page.locator('#settings-open').click();
+    assert.ok((await page.locator('#vm-info').innerText()).includes('10 年'));
+    assert.ok(!(await page.locator('#vm-info').innerText()).includes('secret'),'settings never display URL credentials');
+    await page.locator('[data-close="settings-dialog"]').first().click();
+
     await page.locator('#coverage-grid.year').waitFor();
     assert.equal(await page.locator('#coverage-grid > span').count(),3,'2026 begins Thursday with three weekday placeholders');
     await page.locator('#coverage-grid [data-date="2026-09-06"]').click();

@@ -131,7 +131,14 @@ class Store:
 
     def ack(self, ids):
         with self.connect() as con:
+            days=set()
+            for offset in range(0,len(ids),900):
+                batch=ids[offset:offset+900]
+                days.update(r[0] for r in con.execute('SELECT DISTINCT day FROM samples WHERE day!=\'\' AND kind!=\'system\' AND id IN ('+','.join('?' for _ in batch)+')',batch))
             con.executemany('UPDATE samples SET sent=1 WHERE id=?',[(i,) for i in ids])
+            con.executemany("""INSERT INTO vm_audits(day,next_check) VALUES (?,?)
+                ON CONFLICT(day) DO UPDATE SET generation=generation+1,state='pending',error=NULL,next_check=excluded.next_check""",
+                [(day,time.time()+15) for day in days])
 
     def raw(self, day, kind):
         with self.connect() as con:

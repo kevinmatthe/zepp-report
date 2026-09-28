@@ -4,7 +4,7 @@
   "version": "2.0.0",
   "scripts": {
     "build": "node scripts/build-frontend.mjs",
-    "test:ui": "node tests/ui_state.cjs && node tests/ui_trends.cjs"
+    "test:ui": "node tests/ui_state.cjs && node tests/beta_model.cjs && node tests/ui_trends.cjs && node tests/ui_beta.cjs"
   },
   "dependencies": {
     "echarts": "6.1.0",

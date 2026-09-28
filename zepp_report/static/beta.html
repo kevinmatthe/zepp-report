@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><title>Zepp Report · Beta</title><link rel="stylesheet" href="/static/dist/beta.css"><script defer src="/static/dist/beta.js"></script></head>
+<body>
+<a class="skip" href="#main">跳转到内容</a>
+<header><a class="brand" href="/">z <span>ZEPP REPORT</span></a><span class="beta-badge">BETA · 对比预览</span><a class="old-link" href="/">返回旧版 ↗</a></header>
+<section id="login-view" hidden><form id="login-form"><span class="eyebrow">YOUR HEALTH, SIDE BY SIDE</span><h1>看见每一面的变化。</h1><p>使用现有管理密码登录 Beta。</p><label>管理密码<input id="password" type="password" autocomplete="current-password" required></label><button type="submit">登录 Beta →</button><p id="login-error" role="alert"></p></form></section>
+<main id="main" hidden>
+<section class="intro"><div><span class="eyebrow">YOUR HEALTH, SIDE BY SIDE</span><h1>同样重要，一起看见。</h1><p>睡眠、心率、血氧、步数。把变化放在一起，把差距说清楚。</p></div><a href="/" class="compare-old">打开旧版对照 ↗</a></section>
+<form id="range-form" class="range-bar"><div class="date-fields"><label>开始日期<input id="from" type="date" required></label><span aria-hidden="true">—</span><label>结束日期<input id="to" type="date" required></label></div><div class="presets" role="group" aria-label="最近完整日期"><button type="button" data-days="7">7 天</button><button type="button" data-days="30">30 天</button><button type="button" data-days="90">90 天</button></div><label class="compare-field">对比<select id="compare"><option value="previous">环比 · 上一周期</option><option value="year">同比 · 去年同期</option><option value="none">不对比</option></select></label><button class="apply" type="submit">更新视图</button></form>
+<p id="status" role="status" aria-live="polite">正在读取档案…</p>
+<section id="results" hidden aria-label="健康指标与周期对比">
+<div id="periods" class="periods"></div>
+<div id="metrics" class="metrics"></div>
+<div class="panel-grid">
+<article class="panel" data-domain="sleep"><div class="panel-heading"><div><span class="eyebrow">01 / SLEEP</span><h2>睡眠</h2></div><div class="switch" role="group" aria-label="深睡显示方式"><button type="button" data-sleep="deepMinutes" aria-pressed="true">深睡时长</button><button type="button" data-sleep="deepShare" aria-pressed="false">深睡占比</button></div></div><p id="sleep-caption" class="caption"></p><div id="sleep-chart" class="chart" role="img" aria-label="深睡两期趋势"></div><div id="sleep-table"></div><p class="footnote">深睡时长与占比使用同时有深睡和可识别睡眠记录的夜晚。占比 = 深睡总时长 ÷ 这些夜晚的可识别睡眠总时长。</p></article>
+<article class="panel" data-domain="heart"><div class="panel-heading"><div><span class="eyebrow">02 / HEART RATE</span><h2>心率</h2></div><span class="panel-unit">bpm</span></div><p class="caption">每日心率中位数 · 观察周期内的起伏</p><div id="heart-chart" class="chart" role="img" aria-label="心率两期趋势"></div><div id="heart-table"></div><p class="footnote">周期典型心率为每日中位数的平均值。静息心率单独比较，不与全天心率混用。</p></article>
+<article class="panel" data-domain="spo2"><div class="panel-heading"><div><span class="eyebrow">03 / BLOOD OXYGEN</span><h2>血氧</h2></div><span class="panel-unit">%</span></div><p class="caption">每日观测均值 · 差异以百分点表示</p><div id="spo2-chart" class="chart" role="img" aria-label="血氧两期趋势"></div><div id="spo2-table"></div><p class="footnote">按有观测的日期等权平均，缺失不算零。小幅变化不作健康好坏判断。</p></article>
+<article class="panel" data-domain="steps"><div class="panel-heading"><div><span class="eyebrow">04 / MOVEMENT</span><h2>步数</h2></div><span class="panel-unit">步</span></div><p class="caption">每日记录 · 同时看绝对差值与相对变化</p><div id="steps-chart" class="chart" role="img" aria-label="步数两期趋势"></div><div id="steps-table"></div><p class="footnote">日均仅使用有记录的日期，真实零步数保留。合计受周期长度和覆盖影响，不计算合计增幅。</p></article>
+</div>
+<details class="method"><summary>统计与对齐方式</summary><p id="method-note"></p><p>日期按应用时区解释，睡眠归入醒来日期。曲线按周期内第几天对齐，较长对比期的多余日期不配对；表格使用两期各自的完整统计范围。包括今天时，曲线展示进行中的数据，汇总和对比剔除今天。</p><p>虚线表示对比期，空白表示没有观测；颜色仅区分两期。低覆盖时仅供参考，不将缺失补零。</p></details>
+</section><footer><span>ZEPP REPORT · BETA</span><span id="timezone"></span><button id="logout" type="button">退出登录</button></footer>
+</main></body></html>

@@ -270,4 +270,8 @@ def create_app(data_dir=None,environ=None,start_worker=True):
     @app.get('/')
     def index():
         return FileResponse(static/'index.html')
+    @app.get('/beta')
+    @app.get('/beta/', include_in_schema=False)
+    def beta():
+        return FileResponse(static/'beta.html', headers={'Cache-Control':'no-cache'})
     return app

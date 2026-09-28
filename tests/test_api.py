@@ -129,3 +129,14 @@ def test_export_adds_minute_steps_without_redefining_legacy_sleep(client):
     assert lines['zepp_sleep_light_minutes_daily']['values']==[60]
     assert lines['zepp_sleep_deep_minutes_daily']['values']==[60]
     assert 'zepp_sleep_rem_minutes_daily' not in lines
+
+
+def test_beta_page_is_separate_and_old_home_is_preserved(client):
+    old=client.get('/')
+    beta=client.get('/beta')
+    assert beta.status_code==200
+    assert '/static/dist/beta.js' in beta.text
+    assert '/static/dist/app.js' in old.text
+    assert '/static/dist/beta.js' not in old.text
+    assert '返回旧版' in beta.text
+    assert client.get('/api/analytics/trends?from_date=2026-09-01&to_date=2026-09-02').status_code==401

@@ -3,7 +3,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 
 const output = 'zepp_report/static/dist';
 await build({
-  entryPoints: ['zepp_report/static/app.js'],
+  entryPoints: ['zepp_report/static/app.js', 'zepp_report/static/beta.js'],
   bundle: true,
   minify: true,
   outdir: output,

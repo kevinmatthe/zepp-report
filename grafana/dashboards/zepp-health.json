@@ -8,7 +8,7 @@
     "victoriametrics"
   ],
   "schemaVersion": 39,
-  "version": 2,
+  "version": 3,
   "editable": true,
   "graphTooltip": 1,
   "timezone": "Asia/Shanghai",
@@ -85,7 +85,7 @@
       "gridPos": {
         "x": 0,
         "y": 3,
-        "w": 4,
+        "w": 6,
         "h": 5
       },
       "description": "今日最新快照（上海时间）；不随历史时间选择器改变。跨日无新数据时留空。",
@@ -145,9 +145,9 @@
       "title": "实际睡眠",
       "type": "stat",
       "gridPos": {
-        "x": 4,
+        "x": 6,
         "y": 3,
-        "w": 4,
+        "w": 6,
         "h": 5
       },
       "description": "今日最新快照（上海时间）；不随历史时间选择器改变。跨日无新数据时留空。",
@@ -207,9 +207,9 @@
       "title": "静息心率",
       "type": "stat",
       "gridPos": {
-        "x": 8,
+        "x": 12,
         "y": 3,
-        "w": 4,
+        "w": 6,
         "h": 5
       },
       "description": "今日最新快照（上海时间）；不随历史时间选择器改变。跨日无新数据时留空。",
@@ -266,12 +266,76 @@
     },
     {
       "id": 5,
+      "title": "平均血氧 SpO₂",
+      "type": "stat",
+      "gridPos": {
+        "x": 18,
+        "y": 3,
+        "w": 6,
+        "h": 5
+      },
+      "description": "今日最新快照（上海时间）；不随历史时间选择器改变。跨日无新数据时留空。 独立血氧记录的当日平均值；数值范围 0–100%，缺少观测时留空。",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "${DS_VICTORIAMETRICS}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "${DS_VICTORIAMETRICS}"
+          },
+          "expr": "last_over_time(zepp_spo2_avg_current{account=~\"${account:regex}\"}[1d] @ now()) and (tlast_over_time(zepp_spo2_avg_current{account=~\"${account:regex}\"}[1d] @ now()) >= floor((now() + 28800) / 86400) * 86400 - 28800)",
+          "legendFormat": "今日平均血氧",
+          "refId": "A",
+          "editorMode": "code",
+          "instant": true,
+          "range": false,
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 1,
+          "noValue": "暂无数据",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "cyan"
+          },
+          "mappings": [],
+          "min": 0,
+          "max": 100
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "last"
+          ],
+          "fields": ""
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "text": {
+          "valueSize": 38,
+          "titleSize": 14
+        }
+      }
+    },
+    {
+      "id": 6,
       "title": "平均压力",
       "type": "stat",
       "gridPos": {
-        "x": 12,
-        "y": 3,
-        "w": 4,
+        "x": 0,
+        "y": 8,
+        "w": 6,
         "h": 5
       },
       "description": "今日最新快照（上海时间）；不随历史时间选择器改变。跨日无新数据时留空。",
@@ -327,13 +391,13 @@
       }
     },
     {
-      "id": 6,
+      "id": 7,
       "title": "运动时长",
       "type": "stat",
       "gridPos": {
-        "x": 16,
-        "y": 3,
-        "w": 4,
+        "x": 6,
+        "y": 8,
+        "w": 6,
         "h": 5
       },
       "description": "今日最新快照（上海时间）；不随历史时间选择器改变。跨日无新数据时留空。",
@@ -389,13 +453,13 @@
       }
     },
     {
-      "id": 7,
+      "id": 8,
       "title": "运动次数",
       "type": "stat",
       "gridPos": {
-        "x": 20,
-        "y": 3,
-        "w": 4,
+        "x": 12,
+        "y": 8,
+        "w": 6,
         "h": 5
       },
       "description": "今日最新快照（上海时间）；不随历史时间选择器改变。跨日无新数据时留空。",
@@ -451,25 +515,87 @@
       }
     },
     {
+      "id": 9,
+      "title": "睡眠评分",
+      "type": "stat",
+      "gridPos": {
+        "x": 18,
+        "y": 8,
+        "w": 6,
+        "h": 5
+      },
+      "description": "今日最新快照（上海时间）；不随历史时间选择器改变。跨日无新数据时留空。",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "${DS_VICTORIAMETRICS}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "${DS_VICTORIAMETRICS}"
+          },
+          "expr": "last_over_time(zepp_sleep_score_current{account=~\"${account:regex}\"}[1d] @ now()) and (tlast_over_time(zepp_sleep_score_current{account=~\"${account:regex}\"}[1d] @ now()) >= floor((now() + 28800) / 86400) * 86400 - 28800)",
+          "legendFormat": "今日睡眠评分",
+          "refId": "A",
+          "editorMode": "code",
+          "instant": true,
+          "range": false,
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "暂无数据",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "purple"
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "last"
+          ],
+          "fields": ""
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "text": {
+          "valueSize": 38,
+          "titleSize": 14
+        }
+      }
+    },
+    {
       "title": "01 / 每日趋势 · 活动与恢复",
       "type": "row",
       "collapsed": false,
       "panels": [],
       "gridPos": {
         "x": 0,
-        "y": 8,
+        "y": 13,
         "w": 24,
         "h": 1
       },
-      "id": 8
+      "id": 10
     },
     {
-      "id": 9,
+      "id": 11,
       "title": "日常活动 · 步数",
       "type": "timeseries",
       "gridPos": {
         "x": 0,
-        "y": 9,
+        "y": 14,
         "w": 12,
         "h": 9
       },
@@ -547,12 +673,12 @@
       }
     },
     {
-      "id": 10,
+      "id": 12,
       "title": "睡眠 · 实际睡眠与总时长",
       "type": "timeseries",
       "gridPos": {
         "x": 12,
-        "y": 9,
+        "y": 14,
         "w": 12,
         "h": 9
       },
@@ -645,12 +771,12 @@
       }
     },
     {
-      "id": 11,
+      "id": 13,
       "title": "心率 · 滚动 24 小时分位",
       "type": "timeseries",
       "gridPos": {
         "x": 0,
-        "y": 18,
+        "y": 23,
         "w": 12,
         "h": 9
       },
@@ -812,12 +938,12 @@
       }
     },
     {
-      "id": 12,
+      "id": 14,
       "title": "压力 · 滚动 24 小时分位",
       "type": "timeseries",
       "gridPos": {
         "x": 12,
-        "y": 18,
+        "y": 23,
         "w": 12,
         "h": 9
       },
@@ -979,12 +1105,184 @@
       }
     },
     {
-      "id": 13,
+      "id": 15,
+      "title": "血氧 · 每日平均 SpO₂",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 32,
+        "w": 12,
+        "h": 8
+      },
+      "description": "历史每日汇总，按 Asia/Shanghai 零点归档。缺失不补零、不跨日延续；当天请查看顶部快照。",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "${DS_VICTORIAMETRICS}"
+      },
+      "interval": "1d",
+      "maxDataPoints": 10000,
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "${DS_VICTORIAMETRICS}"
+          },
+          "expr": "last_over_time(zepp_spo2_avg_daily{account=~\"${account:regex}\"}[1d]) and (tlast_over_time(zepp_spo2_avg_daily{account=~\"${account:regex}\"}[1d]) >= floor((time() + 28800) / 86400) * 86400 - 28800)",
+          "legendFormat": "每日平均血氧",
+          "refId": "A",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "format": "time_series",
+          "interval": "1d",
+          "utcOffsetSec": 28800
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "noValue": "暂无数据",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "cyan"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "auto",
+            "pointSize": 4,
+            "spanNulls": false,
+            "insertNulls": false,
+            "barAlignment": 0,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "axisBorderShow": false
+          },
+          "min": 0,
+          "max": 100,
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        }
+      }
+    },
+    {
+      "id": 16,
+      "title": "血氧 · 实测记录",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 12,
+        "y": 32,
+        "w": 12,
+        "h": 8
+      },
+      "description": "独立血氧设备观测，使用原始事件时间；每个查询点回看 5 分钟，无观测时留空。缩短时间范围查看细节。",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "${DS_VICTORIAMETRICS}"
+      },
+      "interval": "1m",
+      "maxDataPoints": 1500,
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "${DS_VICTORIAMETRICS}"
+          },
+          "expr": "last_over_time(zepp_spo2_percent{account=~\"${account:regex}\"}[5m])",
+          "legendFormat": "血氧 SpO₂",
+          "refId": "A",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "noValue": "暂无数据",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "cyan"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "auto",
+            "pointSize": 4,
+            "spanNulls": false,
+            "insertNulls": false,
+            "barAlignment": 0,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "axisPlacement": "auto",
+            "axisLabel": "",
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "axisBorderShow": false
+          },
+          "min": 0,
+          "max": 100,
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        }
+      }
+    },
+    {
+      "id": 17,
       "title": "静息心率与平均压力",
       "type": "timeseries",
       "gridPos": {
         "x": 0,
-        "y": 27,
+        "y": 40,
         "w": 12,
         "h": 8
       },
@@ -1114,12 +1412,12 @@
       }
     },
     {
-      "id": 14,
+      "id": 18,
       "title": "睡眠 · 评分",
       "type": "timeseries",
       "gridPos": {
         "x": 12,
-        "y": 27,
+        "y": 40,
         "w": 12,
         "h": 8
       },
@@ -1203,19 +1501,19 @@
       "panels": [],
       "gridPos": {
         "x": 0,
-        "y": 35,
+        "y": 48,
         "w": 24,
         "h": 1
       },
-      "id": 15
+      "id": 19
     },
     {
-      "id": 16,
+      "id": 20,
       "title": "日常活动 · 步行与跑步时长",
       "type": "timeseries",
       "gridPos": {
         "x": 0,
-        "y": 36,
+        "y": 49,
         "w": 8,
         "h": 8
       },
@@ -1308,12 +1606,12 @@
       }
     },
     {
-      "id": 17,
+      "id": 21,
       "title": "运动 · 每日时长",
       "type": "timeseries",
       "gridPos": {
         "x": 8,
-        "y": 36,
+        "y": 49,
         "w": 8,
         "h": 8
       },
@@ -1391,12 +1689,12 @@
       }
     },
     {
-      "id": 18,
+      "id": 22,
       "title": "运动 · 每日次数",
       "type": "timeseries",
       "gridPos": {
         "x": 16,
-        "y": 36,
+        "y": 49,
         "w": 8,
         "h": 8
       },
@@ -1474,12 +1772,12 @@
       }
     },
     {
-      "id": 19,
+      "id": 23,
       "title": "日常活动 · 类型时长",
       "type": "timeseries",
       "gridPos": {
         "x": 0,
-        "y": 44,
+        "y": 57,
         "w": 12,
         "h": 8
       },
@@ -1557,12 +1855,12 @@
       }
     },
     {
-      "id": 20,
+      "id": 24,
       "title": "运动 · 类型时长",
       "type": "timeseries",
       "gridPos": {
         "x": 12,
-        "y": 44,
+        "y": 57,
         "w": 12,
         "h": 8
       },
@@ -1640,12 +1938,12 @@
       }
     },
     {
-      "id": 21,
+      "id": 25,
       "title": "日常活动 · 距离",
       "type": "timeseries",
       "gridPos": {
         "x": 0,
-        "y": 52,
+        "y": 65,
         "w": 8,
         "h": 8
       },
@@ -1723,12 +2021,12 @@
       }
     },
     {
-      "id": 22,
+      "id": 26,
       "title": "跑步 · 每日距离",
       "type": "timeseries",
       "gridPos": {
         "x": 8,
-        "y": 52,
+        "y": 65,
         "w": 8,
         "h": 8
       },
@@ -1806,12 +2104,12 @@
       }
     },
     {
-      "id": 23,
+      "id": 27,
       "title": "日常活动 · 热量",
       "type": "timeseries",
       "gridPos": {
         "x": 16,
-        "y": 52,
+        "y": 65,
         "w": 8,
         "h": 8
       },
@@ -1895,19 +2193,19 @@
       "panels": [],
       "gridPos": {
         "x": 0,
-        "y": 60,
+        "y": 73,
         "w": 24,
         "h": 1
       },
-      "id": 24
+      "id": 28
     },
     {
-      "id": 25,
+      "id": 29,
       "title": "睡眠 · 阶段时长",
       "type": "timeseries",
       "gridPos": {
         "x": 0,
-        "y": 61,
+        "y": 74,
         "w": 24,
         "h": 8
       },
@@ -2030,12 +2328,12 @@
       }
     },
     {
-      "id": 26,
+      "id": 30,
       "title": "心率 · 实测记录",
       "type": "timeseries",
       "gridPos": {
         "x": 0,
-        "y": 69,
+        "y": 82,
         "w": 12,
         "h": 8
       },
@@ -2111,12 +2409,12 @@
       }
     },
     {
-      "id": 27,
+      "id": 31,
       "title": "压力 · 实测记录",
       "type": "timeseries",
       "gridPos": {
         "x": 12,
-        "y": 69,
+        "y": 82,
         "w": 12,
         "h": 8
       },
@@ -2198,19 +2496,19 @@
       "panels": [],
       "gridPos": {
         "x": 0,
-        "y": 77,
+        "y": 90,
         "w": 24,
         "h": 1
       },
-      "id": 28
+      "id": 32
     },
     {
-      "id": 29,
+      "id": 33,
       "title": "训练负荷 · ATL / CTL",
       "type": "timeseries",
       "gridPos": {
         "x": 0,
-        "y": 78,
+        "y": 91,
         "w": 12,
         "h": 8
       },
@@ -2303,12 +2601,12 @@
       }
     },
     {
-      "id": 30,
+      "id": 34,
       "title": "训练状态 · TSB",
       "type": "timeseries",
       "gridPos": {
         "x": 12,
-        "y": 78,
+        "y": 91,
         "w": 12,
         "h": 8
       },
@@ -2386,12 +2684,12 @@
       }
     },
     {
-      "id": 31,
+      "id": 35,
       "title": "训练负荷 · TRIMP / 运动负荷",
       "type": "timeseries",
       "gridPos": {
         "x": 0,
-        "y": 86,
+        "y": 99,
         "w": 12,
         "h": 8
       },
@@ -2484,12 +2782,12 @@
       }
     },
     {
-      "id": 32,
+      "id": 36,
       "title": "训练负荷 · 周负荷与最佳区间",
       "type": "timeseries",
       "gridPos": {
         "x": 12,
-        "y": 86,
+        "y": 99,
         "w": 12,
         "h": 8
       },
@@ -2597,12 +2895,12 @@
       }
     },
     {
-      "id": 33,
+      "id": 37,
       "title": "心肺能力 · VO₂ max",
       "type": "timeseries",
       "gridPos": {
         "x": 0,
-        "y": 94,
+        "y": 107,
         "w": 24,
         "h": 7
       },
@@ -2686,19 +2984,19 @@
       "panels": [],
       "gridPos": {
         "x": 0,
-        "y": 101,
+        "y": 114,
         "w": 24,
         "h": 1
       },
-      "id": 34
+      "id": 38
     },
     {
-      "id": 35,
+      "id": 39,
       "title": "待同步任务",
       "type": "stat",
       "gridPos": {
         "x": 0,
-        "y": 102,
+        "y": 115,
         "w": 4,
         "h": 4
       },
@@ -2763,12 +3061,12 @@
       }
     },
     {
-      "id": 36,
+      "id": 40,
       "title": "失败任务",
       "type": "stat",
       "gridPos": {
         "x": 4,
-        "y": 102,
+        "y": 115,
         "w": 4,
         "h": 4
       },
@@ -2833,12 +3131,12 @@
       }
     },
     {
-      "id": 37,
+      "id": 41,
       "title": "需要认证",
       "type": "stat",
       "gridPos": {
         "x": 8,
-        "y": 102,
+        "y": 115,
         "w": 4,
         "h": 4
       },
@@ -2917,12 +3215,12 @@
       }
     },
     {
-      "id": 38,
+      "id": 42,
       "title": "待导出记录",
       "type": "stat",
       "gridPos": {
         "x": 12,
-        "y": 102,
+        "y": 115,
         "w": 4,
         "h": 4
       },
@@ -2987,12 +3285,12 @@
       }
     },
     {
-      "id": 39,
+      "id": 43,
       "title": "数据冲突",
       "type": "stat",
       "gridPos": {
         "x": 16,
-        "y": 102,
+        "y": 115,
         "w": 4,
         "h": 4
       },
@@ -3057,12 +3355,12 @@
       }
     },
     {
-      "id": 40,
+      "id": 44,
       "title": "距上次同步成功",
       "type": "stat",
       "gridPos": {
         "x": 20,
-        "y": 102,
+        "y": 115,
         "w": 4,
         "h": 4
       },

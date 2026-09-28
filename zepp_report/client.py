@@ -89,6 +89,8 @@ class ZeppClient:
             return body
         if kind == 'stress':
             path, params = f'/users/{uid}/events', {'eventType':'all_day_stress'}
+        elif kind == 'spo2':
+            path, params = f'/users/{uid}/events', {'eventType':'blood_oxygen','subType':'click','reverse':'true'}
         elif kind == 'training':
             path, params = '/v2/users/me/events', {'eventType':'exertion','subType':'algo_result'}
         elif kind == 'trimp':

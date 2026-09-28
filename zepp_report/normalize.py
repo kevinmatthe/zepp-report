@@ -5,7 +5,7 @@ import math
 from datetime import date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
-KINDS = ('band', 'stress', 'training', 'trimp', 'sport', 'vo2', 'workouts')
+KINDS = ('band', 'stress', 'training', 'trimp', 'sport', 'vo2', 'workouts', 'spo2')
 STAGES = {4: 'light', 5: 'deep', 7: 'awake', 8: 'rem'}
 
 
@@ -34,12 +34,37 @@ def copy_numbers(source, mapping, target):
             target[name] = n
 
 
+
+def sleep_stage_base(base,slp,timezone):
+    """Zepp may attach an overnight minute timeline to the wake-day row.
+
+    Choose the nearby calendar anchor that overlaps explicit sleep timestamps,
+    rather than assuming row.date_time is the minute timeline's base day.
+    """
+    stages=slp.get('stage') or slp.get('odd_stage') or []
+    intervals=[]
+    for stage in stages:
+        a,b=number(stage.get('start')),number(stage.get('stop'))
+        if a is not None and b is not None and b>a:
+            intervals.append((a*60000,b*60000))
+    if not intervals:return base
+    start,end=float(slp['st'])*1000,float(slp['ed'])*1000
+    source=datetime.fromtimestamp(base/1000,ZoneInfo(timezone)).date()
+    candidates=[]
+    for shift in (-2,-1,0,1,2):
+        candidate=day_ms((source+timedelta(days=shift)).isoformat(),timezone)
+        overlap=sum(max(0,min(candidate+b,end)-max(candidate+a,start)) for a,b in intervals)
+        gap=abs(candidate+min(a for a,_ in intervals)-start)
+        candidates.append(((overlap,-gap,-abs(shift)),candidate))
+    return max(candidates)[1]
+
+
 def normalize(kind, day, raw, timezone):
     if kind == 'workouts':
         from .workouts import normalize_workouts
         return normalize_workouts(raw, day, timezone)
     low, high = day_bounds(day, timezone)
-    result = {'summary': {}, 'heart_rate': [], 'stress': [], 'sleep_stages': []}
+    result = {'summary': {}, 'heart_rate': [], 'stress': [], 'spo2': [], 'sleep_stages': []}
     summary = result['summary']
     if kind == 'band':
         candidates = []
@@ -65,6 +90,7 @@ def normalize(kind, day, raw, timezone):
                 candidates.append((end-start, base, slp))
         if candidates:
             _, base, slp = max(candidates, key=lambda row: row[0])
+            base=sleep_stage_base(base,slp,timezone)
             summary['sleep_minutes'] = (float(slp['ed']) - float(slp['st'])) / 60
             copy_numbers(slp, {'ss':'sleep_score','rhr':'resting_hr'}, summary)
             # Zero score/resting HR represent missing measurements in Zepp sleep summaries.
@@ -95,7 +121,14 @@ def normalize(kind, day, raw, timezone):
                     continue
             elif ts is None or not low <= ts < high:
                 continue
-            if kind == 'stress':
+            if kind == 'spo2':
+                extra=row.get('extra',{})
+                if isinstance(extra,str): extra=json.loads(extra)
+                if not isinstance(extra,dict): raise ValueError('Invalid blood oxygen event')
+                value=number(extra.get('spo2'))
+                if value is not None and 0<value<=100:
+                    result['spo2'].append({'time':int(ts),'value':value})
+            elif kind == 'stress':
                 copy_numbers(row, {'avgStress':'stress_avg'}, summary)
                 readings = row.get('data', [])
                 if isinstance(readings, str):
@@ -125,6 +158,8 @@ def normalize(kind, day, raw, timezone):
         # Keep existing VM sleep duration definitions stable; add identifiable sleep only.
         if 'actual_sleep_minutes' in sleep:
             summary['actual_sleep_minutes']=sleep['actual_sleep_minutes']
-    for field in ('heart_rate', 'stress'):
+    for field in ('heart_rate', 'stress', 'spo2'):
         result[field] = [{'time': k, 'value': v} for k, v in sorted({x['time']: x['value'] for x in result[field]}.items())]
+    if result['spo2']:
+        summary['spo2_avg']=sum(x['value'] for x in result['spo2'])/len(result['spo2'])
     return result

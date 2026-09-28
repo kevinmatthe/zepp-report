@@ -1,6 +1,6 @@
 """Additive, repeatable analytics schema; original archives/outbox remain authoritative."""
 
-ALGORITHM_VERSION = 2
+ALGORITHM_VERSION = 3
 
 
 def migrate(con):
@@ -42,4 +42,10 @@ def migrate(con):
             SELECT day,kind FROM records WHERE kind IN ('band','workouts')
             AND NOT EXISTS(SELECT 1 FROM schema_migrations WHERE version=3);
         INSERT OR IGNORE INTO schema_migrations VALUES(3);
+        INSERT OR IGNORE INTO tasks(day,kind,status,updated_at)
+            SELECT day,'spo2','pending',strftime('%s','now') FROM tasks
+            WHERE kind='band' AND NOT EXISTS(SELECT 1 FROM schema_migrations WHERE version=4);
+        UPDATE metric_backfill SET done=0,retry_at=0,error=NULL WHERE kind='band'
+            AND NOT EXISTS(SELECT 1 FROM schema_migrations WHERE version=4);
+        INSERT OR IGNORE INTO schema_migrations VALUES(4);
     ''')

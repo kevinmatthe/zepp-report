@@ -39,14 +39,15 @@ async function showDay(day) {
   });
   const metric = $("profile-metric").value;
   const points = detail.profiles?.[metric] || [];
+  const unit=metric==="spo2"?"%":metric==="heart_rate"?" bpm":"";
   const map = new Map(points.map((p) => [p.minute, p.value]));
   const rows = baseline.map((b) => ({ ...b, p25: b.n >= 5 ? b.p25 : null, p75: b.n >= 5 ? b.p75 : null, p10: b.n >= 5 ? b.p10 : null, p90: b.n >= 5 ? b.p90 : null, p50: b.n >= 2 ? b.p50 : null, mean: b.n >= 2 ? b.mean : null }));
   plot("profile-chart", rows.map((r) => clock(r.minute)), [...bands(rows, null, $("statistic").value, $("band").value === "outer"), { name: day, type: "line", data: rows.map((r) => map.get(r.minute) ?? null), itemStyle: { color: "#e1b676" }, lineStyle: { width: 2 } }], null, { tooltip: { trigger: "axis", confine: true, formatter: (params) => {
     const i = params[0]?.dataIndex, b = rows[i];
     if (!b) return "";
-    return `${clock(b.minute)} · 基于 ${b.n} 天<br>中位数 ${number(b.p50, 1)}<br>P25–P75 ${number(b.p25, 1)}–${number(b.p75, 1)}<br>${day} ${number(map.get(b.minute), 1)}`;
+    return `${clock(b.minute)} · 基于 ${b.n} 天<br>中位数 ${number(b.p50, 1)}${unit}<br>P25–P75 ${number(b.p25, 1)}–${number(b.p75, 1)}${unit}<br>${day} ${number(map.get(b.minute), 1)}${unit}`;
   } } });
-  const coverage = Object.entries(detail.coverage || {}).map(([key, c]) => `${key === "heart_rate" ? "心率" : "压力"}：观测 ${number(c.observed_minutes)} / ${number(c.expected_minutes)} 分钟，${number(c.n)} 个样本`).join(" · ");
+  const coverage = Object.entries(detail.coverage || {}).map(([key, c]) => `${({heart_rate:"心率",stress:"压力",spo2:"血氧"})[key]||key}：观测 ${number(c.observed_minutes)} / ${number(c.expected_minutes)} 分钟，${number(c.n)} 个样本`).join(" · ");
   const sleepQuality = `睡眠阶段覆盖 ${number(detail.summary?.sleep_stage_coverage == null ? null : detail.summary.sleep_stage_coverage * 100, 1)}% · 未识别 ${number(detail.summary?.sleep_gap_minutes, 1)} 分钟 · 重叠 ${number(detail.summary?.sleep_overlap_minutes, 1)} 分钟`;
   $("day-detail").innerHTML = `<h3>${escape(day)} <span class="muted">· 单日记录</span></h3><p>步数 ${number(detail.summary?.steps)} · 可识别睡眠 ${number(detail.summary?.actual_sleep_minutes)} 分钟 · 活动片段 ${detail.activities?.length || 0} 段</p><p class="small muted">${escape(coverage)}</p><p class="small muted">${escape(sleepQuality)}</p>` + sleepTimeline(detail.sleep_stages) + (detail.activities || []).slice(0, 20).map((a) => `<p class="small">${escape(a.label || a.type || "未知活动")} · ${number(a.minutes ?? a.duration_minutes, 1)} 分钟</p>`).join("") + "<h3>完整运动记录</h3>" + ((detail.workouts || []).length ? (detail.workouts || []).map((w) => `<p class="small">${escape({ outdoor_running: "户外跑步", walking: "步行", outdoor_cycling: "户外骑行", pool_swimming: "泳池游泳", football: "足球", rope_skipping: "跳绳", hiking: "徒步", strength_training: "力量训练" }[w.type] || w.type)} · ${number(w.minutes, 1)} 分钟 · ${number(w.distance_meters == null ? null : w.distance_meters / 1e3, 2)} km</p>`).join("") : '<p class="muted small">暂无完整运动记录。</p>');
 }

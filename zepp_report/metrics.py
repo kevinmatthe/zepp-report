@@ -11,7 +11,7 @@ TYPE_METRICS = {'activity':'zepp_activity_type_minutes','workout_activity':'zepp
 
 SUMMARY_KEYS = ('steps','distance_meters','calories','sleep_score','sleep_minutes','resting_hr',
                 'sleep_deep_minutes','sleep_light_minutes','sleep_rem_minutes','sleep_awake_minutes',
-                'stress_avg','atl','ctl','tsb','trimp','sport_load','weekly_load','sport_optimal_min','sport_optimal_max','vo2_max') + ADDITIONAL_SUMMARY_KEYS
+                'stress_avg','atl','ctl','tsb','trimp','sport_load','weekly_load','sport_optimal_min','sport_optimal_max','vo2_max','spo2_avg') + ADDITIONAL_SUMMARY_KEYS
 
 
 def metric_lines(day, data, account, timezone, now=None, archive=False):
@@ -31,6 +31,7 @@ def metric_lines(day, data, account, timezone, now=None, archive=False):
         for kind,minutes in data.get(field,{}).items():
             add(f'{name}_{"current" if current else "daily"}',[(ts,minutes)],type=kind)
     add('zepp_heart_rate_bpm',[(p['time'],p['value']) for p in data.get('heart_rate',[])])
+    add('zepp_spo2_percent',[(p['time'],p['value']) for p in data.get('spo2',[])])
     add('zepp_stress',[(p['time'],p['value']) for p in data.get('stress',[])])
     # Exact stage intervals remain in SQLite/UI; Grafana uses stage durations.
     return lines

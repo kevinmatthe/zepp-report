@@ -2,7 +2,7 @@ import { api, action } from "./api.js";
 import { $, state, addDays, today, escape, number, notice, persist } from "./state.js";
 let view = "year", anchor = "", selected = [], days = [], sequence = 0, taskOffset = 0, taskSequence = 0, previewMode = "sync";
 const labels = { done: "已完成", partial: "部分完成", running: "执行中", pending: "等待中", failed: "失败", unrequested: "未检查", future: "未来日期", empty: "已检查暂无数据" };
-const kinds = { band: "心率 / 睡眠 / 活动", stress: "压力", training: "训练", trimp: "TRIMP", sport: "运动负荷", vo2: "VO₂ Max", workouts: "完整运动" };
+const kinds = { band: "心率 / 睡眠 / 活动", stress: "压力", training: "训练", trimp: "TRIMP", sport: "运动负荷", vo2: "VO₂ Max", workouts: "完整运动", spo2:"血氧" };
 function bounds() {
   anchor = anchor || state.to;
   let a = anchor, b = anchor;

@@ -53,7 +53,7 @@ def test_enqueue_and_empty_range(client):
     headers=login(client)
     client.put('/api/settings',json={'token':'secret','user_id':'123'},headers=headers)
     r=client.post('/api/sync',json={'from_date':'2026-09-25','to_date':'2026-09-26'},headers=headers)
-    assert r.status_code==200 and r.json()['queued']==14
+    assert r.status_code==200 and r.json()['queued']==16
     assert client.get('/api/data?from_date=2026-09-25&to_date=2026-09-26').json()['days']==[]
     assert client.get('/api/export?from_date=2026-09-25&to_date=2026-09-26').status_code==200
 

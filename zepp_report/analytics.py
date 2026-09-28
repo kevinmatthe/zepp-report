@@ -129,7 +129,7 @@ def profile(index,start,end,metric):
 
 UNITS={'steps':'步','distance_meters':'米','calories':'kcal','actual_sleep_minutes':'分钟',
        'sleep_span_minutes':'分钟','sleep_minutes':'分钟','sleep_score':'分','resting_hr':'bpm',
-       'workout_minutes':'分钟','workout_count':'次','heart_rate':'bpm','stress':'分','walking_minutes':'分钟','running_minutes':'分钟',
+       'workout_minutes':'分钟','workout_count':'次','spo2':'%','spo2_avg':'%','heart_rate':'bpm','stress':'分','walking_minutes':'分钟','running_minutes':'分钟',
        'running_distance_meters':'米','light_activity_minutes':'分钟',
        'sleep_onset_minutes':'分钟','sleep_wake_minutes':'分钟','atl':'负荷','ctl':'负荷','tsb':'负荷','trimp':'负荷','sport_load':'负荷'}
 TOTALS={'workout_minutes','workout_count','steps','distance_meters','calories','walking_minutes','running_minutes','running_distance_meters','light_activity_minutes'}
@@ -141,7 +141,7 @@ def summarize(days):
     for key in keys:
         values=[]
         for day in days:
-            value=day.get(key,{}).get('p50') if key in ('heart_rate','stress') else day['summary'].get(key)
+            value=day.get(key,{}).get('p50') if key in ('heart_rate','stress','spo2') else day['summary'].get(key)
             if number(value) is not None:
                 values.append(value)
         n=len(values); total=len(days)
@@ -160,9 +160,9 @@ def day_rows(index,start,end):
     for day in days_between(start,end):
         row=by_day.get(day)
         if row and not row['pending']:
-            value=dict(row['data']); value['quality']='observed' if value['summary'] or value['heart_rate']['n'] or value['stress']['n'] else 'empty'
+            value=dict(row['data']); value['quality']='observed' if value['summary'] or value['heart_rate']['n'] or value['stress']['n'] or value['spo2']['n'] else 'empty'
         else:
-            value={'date':day,'summary':{},'heart_rate':stats([]),'stress':stats([]),'activity':{},'workout_activity':{},
+            value={'date':day,'summary':{},'heart_rate':stats([]),'stress':stats([]),'spo2':stats([]),'activity':{},'workout_activity':{},
                    'quality':'index_pending' if row else 'missing'}
         days.append(value)
     return days,rows
@@ -186,9 +186,9 @@ def group_days(days,grain):
             for kind,value in d['activity'].items():
                 activity[kind]=activity.get(kind,0)+value
         result.append({'date':key,'from_date':items[0]['date'],'to_date':items[-1]['date'],
-                       'summary':{k:v['value'] for k,v in sums.items() if k not in ('heart_rate','stress') and v['value'] is not None},
+                       'summary':{k:v['value'] for k,v in sums.items() if k not in ('heart_rate','stress','spo2') and v['value'] is not None},
                        'heart_rate':stats(d['heart_rate']['p50'] for d in items),
-                       'stress':stats(d['stress']['p50'] for d in items), 'activity':activity,'workout_activity':workout_activity,
+                       'stress':stats(d['stress']['p50'] for d in items),'spo2':stats(d['spo2']['p50'] for d in items), 'activity':activity,'workout_activity':workout_activity,
                        'valid_days':sum(d['quality']=='observed' for d in items),'total_days':len(items),'metrics':sums,
                        'quality':'partial' if any(d['quality']!='observed' for d in items) else 'observed',
                        'distribution':'daily_medians'})

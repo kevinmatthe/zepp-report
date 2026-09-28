@@ -38,7 +38,7 @@ def test_first_backfill_and_worker_store_empty_results(tmp_path):
     settings,store=setup(tmp_path)
     service=SyncService(settings,store,client_factory=lambda _:Client(),transport=VM())
     count=service.schedule()
-    assert count == 30*7
+    assert count == 30*8
     assert service.tick()
     assert store.stats()['tasks']['done']==1
 

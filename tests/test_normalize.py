@@ -58,3 +58,13 @@ def test_missing_and_invalid_are_not_zero():
 
 def test_dst_day_uses_next_calendar_midnight():
     assert day_ms('2026-03-09', 'America/New_York') - day_ms('2026-03-08', 'America/New_York') == 23*3600000
+
+
+def test_sleep_stages_anchor_to_sleep_interval_when_row_is_wake_day():
+    start=int(datetime(2026,9,26,23,0,tzinfo=ZoneInfo('Asia/Shanghai')).timestamp())
+    raw={'data':[{'date_time':'2026-09-27','summary':encoded({'slp':{
+        'st':start,'ed':start+8*3600,'stage':[{'start':1380,'stop':1440,'mode':5},
+                                         {'start':1440,'stop':1860,'mode':4}]}})}]}
+    result=normalize('band','2026-09-27',raw,'Asia/Shanghai')
+    assert result['sleep_stages'][0]['start']==start*1000
+    assert result['summary']['actual_sleep_minutes']==480

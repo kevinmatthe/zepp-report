@@ -46,7 +46,7 @@ class SyncRequest(BaseModel):
     from_date: date | None = None
     to_date: date | None = None
     force: StrictBool = False
-    kinds: list[Literal['band','stress','training','trimp','sport','vo2','workouts']] | None = Field(default=None,min_length=1,max_length=7)
+    kinds: list[Literal['band','stress','training','trimp','sport','vo2','workouts','spo2']] | None = Field(default=None,min_length=1,max_length=8)
 
 
 def create_app(data_dir=None,environ=None,start_worker=True):
@@ -205,7 +205,7 @@ def create_app(data_dir=None,environ=None,start_worker=True):
         return preview(store,start,end,tuple(dict.fromkeys(body.kinds or KINDS)),body.force)
 
     @app.get('/api/coverage')
-    def get_coverage(from_date:date,to_date:date,kind:Literal['band','stress','training','trimp','sport','vo2','workouts']|None=None):
+    def get_coverage(from_date:date,to_date:date,kind:Literal['band','stress','training','trimp','sport','vo2','workouts','spo2']|None=None):
         if from_date>to_date or (to_date-from_date).days>=366 or from_date<date(1970,1,1):
             raise HTTPException(422,'覆盖日历范围不能超过366天')
         return coverage(store,from_date.isoformat(),to_date.isoformat(),settings.snapshot()['timezone'],kind,
@@ -213,7 +213,7 @@ def create_app(data_dir=None,environ=None,start_worker=True):
 
     @app.get('/api/tasks')
     def get_tasks(from_date:date,to_date:date,limit:int=Query(50,ge=1,le=200),offset:int=Query(0,ge=0),
-                  kind:Literal['band','stress','training','trimp','sport','vo2','workouts']|None=None,
+                  kind:Literal['band','stress','training','trimp','sport','vo2','workouts','spo2']|None=None,
                   status:Literal['pending','running','failed','done']|None=None):
         start,end=validate_range(from_date,to_date,3650)
         where='day BETWEEN ? AND ?'; params=[start,end]
@@ -232,7 +232,7 @@ def create_app(data_dir=None,environ=None,start_worker=True):
         return analytics.trends(service.analytics,start,end,compare,grain)
 
     @app.get('/api/analytics/profile')
-    def get_profile(from_date:date,to_date:date,metric:Literal['heart_rate','stress']='heart_rate'):
+    def get_profile(from_date:date,to_date:date,metric:Literal['heart_rate','stress','spo2']='heart_rate'):
         start,end=validate_range(from_date,to_date)
         return analytics.profile(service.analytics,start,end,metric)
 

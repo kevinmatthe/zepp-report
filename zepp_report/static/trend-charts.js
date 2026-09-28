@@ -44,6 +44,10 @@ function renderTrends(data, onDay) {
   const stat = $("statistic").value, outer = $("band").value === "outer";
   plot("heart-chart", x, [...bands(days, "heart_rate", stat, outer), { ...line("静息心率", vals("resting_hr"), "#d4ac75") }], onDay);
   plot("stress-chart", x, bands(days, "stress", stat, outer), onDay);
+  plot('spo2-chart',x,bands(days,'spo2',stat,outer),onDay);
+  const oxygen=data.summary?.spo2_avg;
+  $('spo2-value').textContent=number(oxygen?.value,1);
+  $('spo2-note').textContent=`日均血氧按有记录日期平均 · 有效 ${oxygen?.valid_days??0} / ${oxygen?.total_days??days.length} 天。曲线为${stat==='mean'?'每日均值':'每日中位数'}，阴影为样本分布；缺失不补零。`;
   const sleepMetric = $("sleep-metric").value;
   const sleepSeries = sleepMetric === "score" ? [line("睡眠评分", vals("sleep_score"))] : sleepMetric === "timing" ? [line("入睡时间", vals("sleep_onset_minutes")), line("醒来时间", vals("sleep_wake_minutes"))] : [...["deep", "light", "rem", "awake"].map((s, i) => ({ name: ["深睡", "浅睡", "REM", "清醒"][i], type: "bar", stack: "sleep", data: vals("sleep_" + s + "_minutes") })), line("可识别睡眠", vals("actual_sleep_minutes"), "#efe3bd")];
   plot("sleep-chart", x, sleepSeries, onDay, sleepMetric === "timing" ? { yAxis: { type: "value", scale: true, axisLabel: { color: "#aab6a8", formatter: (v) => {

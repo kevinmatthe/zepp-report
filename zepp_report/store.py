@@ -143,10 +143,10 @@ class Store:
             rows = con.execute('SELECT day,data,updated_at FROM records WHERE day BETWEEN ? AND ? ORDER BY day,kind',(start,end)).fetchall()
         days = {}
         for row in rows:
-            day = days.setdefault(row['day'], {'date':row['day'],'summary':{},'heart_rate':[],'stress':[],'sleep_stages':[],'updated_at':0})
+            day = days.setdefault(row['day'], {'date':row['day'],'summary':{},'heart_rate':[],'stress':[],'spo2':[],'sleep_stages':[],'updated_at':0})
             data = json.loads(row['data'])
             day['summary'].update(data.get('summary',{}))
-            for key in ('heart_rate','stress','sleep_stages','activity','workout_activity'):
+            for key in ('heart_rate','stress','spo2','sleep_stages','activity','workout_activity'):
                 if data.get(key):
                     day[key] = data[key]
             day['updated_at'] = max(day['updated_at'],row['updated_at'])

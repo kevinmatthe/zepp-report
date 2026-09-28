@@ -27,13 +27,13 @@ class AnalyticsStore:
                 'failed':counts.get('failed',0),'ready':counts.get('done',0)}
 
     def _detail(self,day,rows):
-        detail={'date':day,'summary':{},'heart_rate':[],'stress':[],'sleep_stages':[], 'activities':[], 'workouts':[]}
+        detail={'date':day,'summary':{},'heart_rate':[],'stress':[],'spo2':[],'sleep_stages':[], 'activities':[], 'workouts':[]}
         sleep_bounds=None
         for row in rows:
             data=json.loads(row['data'])
             raw=json.loads(row['raw'])
             detail['summary'].update(data.get('summary',{}))
-            for key in ('heart_rate','stress','sleep_stages'):
+            for key in ('heart_rate','stress','spo2','sleep_stages'):
                 if data.get(key):
                     detail[key]=data[key]
             if row['kind']=='workouts':
@@ -61,8 +61,8 @@ class AnalyticsStore:
         low,high=day_bounds(day,self.timezone)
         detail['coverage']={key:{'observed_minutes':len({int(x['time'])//60000 for x in detail[key] if low<=x['time']<high}),
                                   'expected_minutes':(high-low)//60000,'n':len(detail[key])}
-                            for key in ('heart_rate','stress')}
-        detail['profiles']={key:daily_profile(detail[key],self.timezone) for key in ('heart_rate','stress')}
+                            for key in ('heart_rate','stress','spo2')}
+        detail['profiles']={key:daily_profile(detail[key],self.timezone) for key in ('heart_rate','stress','spo2')}
         return detail
 
     def detail(self,day):
@@ -84,7 +84,7 @@ class AnalyticsStore:
             revision=hashlib.sha256(dump([[r['kind'],r['raw'],r['data']] for r in rows]).encode()).hexdigest()
             daily={key:detail[key] for key in ('date','summary','activity','workout_activity')}
             daily['activity_count']=len(detail['activities'])+len(detail['workouts'])
-            for key in ('heart_rate','stress'):
+            for key in ('heart_rate','stress','spo2'):
                 daily[key]=stats(x['value'] for x in detail[key])
                 low,high=day_bounds(job['day'],self.timezone)
                 observed=len({int(x['time'])//60000 for x in detail[key] if low<=x['time']<high})

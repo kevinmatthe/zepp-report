@@ -57,9 +57,9 @@ async function load() {
     $("comparison-note").textContent = d.comparison ? `比较区间：${d.comparison.from_date} — ${d.comparison.to_date} · 缺失日期不计为零；不足覆盖仅供参考。` : "未选择对比或历史不足。可在同步日历中补齐历史。";
     if (d.summary_range) $("comparison-note").textContent += ` 当前统计有效范围：${d.summary_range.from_date} — ${d.summary_range.to_date}${d.summary_excludes_today ? "（不含尚未结束的今天）" : ""}。`;
     else if (d.summary_excludes_today) $("comparison-note").textContent += " 当前范围只有今天，日汇总比较等待今天结束；下方曲线仍显示已观测数据。";
-    if (state.grain !== "day") $("comparison-note").textContent += " 周/月心率与压力按每日中位数汇总；并非全周期逐分钟分布。";
+    if (state.grain !== "day") $("comparison-note").textContent += " 周/月心率、压力与血氧按每日中位数汇总；并非全周期逐分钟分布。";
     if (d.quality === "index_pending") $("comparison-note").textContent += " 分析索引正在重建，部分日期暂未就绪。";
-    $("data-state").textContent = (d.days || []).some((day) => Object.keys(day.summary || {}).length || day.heart_rate?.n || day.stress?.n) ? "" : "所选范围暂无记录。可前往同步日历补齐历史。";
+    $("data-state").textContent = (d.days || []).some((day) => Object.keys(day.summary || {}).length || day.heart_rate?.n || day.stress?.n || day.spo2?.n) ? "" : "所选范围暂无记录。可前往同步日历补齐历史。";
     await loadProfile();
   } catch (e) {
     if (id === request) $("data-state").textContent = "读取失败：" + e.message;

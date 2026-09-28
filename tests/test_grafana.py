@@ -23,7 +23,7 @@ def targets():
 def test_metrics_match_exporter_and_cover_all_health_domains():
     used = set()
     allowed = {f'zepp_{key}_{suffix}' for key in SUMMARY_KEYS for suffix in ('daily', 'current')}
-    allowed |= OPS | {'zepp_heart_rate_bpm', 'zepp_stress'}
+    allowed |= OPS | {'zepp_heart_rate_bpm', 'zepp_stress', 'zepp_spo2_percent'}
     allowed |= {f'zepp_{domain}_type_minutes_{suffix}'
                 for domain in ('activity', 'workout') for suffix in ('daily', 'current')}
     for _, target in targets():
@@ -119,3 +119,21 @@ def test_typed_duration_series_preserve_type_labels_and_freshness():
         assert len(found) == 1
         assert '{{type}}' in found[0]['legendFormat']
         assert 'tlast_over_time(' in found[0]['expr']
+
+
+def test_spo2_has_fresh_today_average_and_daily_and_observed_trends():
+    selected = [(p, t) for p, t in targets() if 'zepp_spo2_' in t['expr']]
+    assert len(selected) == 3
+    expressions = ' '.join(t['expr'] for _, t in selected)
+    for name in ('zepp_spo2_avg_current', 'zepp_spo2_avg_daily', 'zepp_spo2_percent'):
+        assert name in expressions
+    for panel, target in selected:
+        defaults = panel['fieldConfig']['defaults']
+        assert defaults['unit'] == 'percent'
+        assert defaults['min'] == 0 and defaults['max'] == 100
+        assert 'thresholds' not in defaults
+        if '_current' in target['expr']:
+            assert panel['gridPos']['y'] < 13 and panel['type'] == 'stat'
+        if 'zepp_spo2_percent{' in target['expr']:
+            assert '[5m]' in target['expr']
+            assert panel['fieldConfig']['defaults']['custom']['spanNulls'] is False

@@ -2596,7 +2596,7 @@
         "w": 12,
         "h": 8
       },
-      "description": "按可视时间范围自动降采样，目标约 2000 点，最小查询间隔 1 分钟。放大到单日保留分钟精度；缺失区间留空。分别显示区间均值、最低和最高观测值，保留峰谷；单分钟内多条样本也按此方式聚合。完整原始时间戳与逐条记录见 WebUI 明细。",
+      "description": "按可视时间范围自动降采样，目标约 2000 点，最小查询间隔 1 分钟。放大到单日保留分钟精度；缺失区间留空。分别显示区间均值、最低和最高观测值，保留峰谷；单分钟内多条样本也按此方式聚合。完整原始时间戳与逐条记录见 WebUI 明细。 有效采样点以 2px 线连接并保留点标记，真实缺测区间断开。",
       "datasource": {
         "type": "victoriametrics-metrics-datasource",
         "uid": "${DS_VICTORIAMETRICS}"
@@ -2657,7 +2657,7 @@
           "custom": {
             "drawStyle": "line",
             "lineInterpolation": "linear",
-            "lineWidth": 0,
+            "lineWidth": 2,
             "fillOpacity": 0,
             "showPoints": "always",
             "pointSize": 3,
@@ -2706,7 +2706,7 @@
         "w": 12,
         "h": 8
       },
-      "description": "按可视时间范围自动降采样，目标约 2000 点，最小查询间隔 1 分钟。放大到单日保留分钟精度；缺失区间留空。分别显示区间均值、最低和最高观测值，保留峰谷；单分钟内多条样本也按此方式聚合。完整原始时间戳与逐条记录见 WebUI 明细。",
+      "description": "按可视时间范围自动降采样，目标约 2000 点，最小查询间隔 1 分钟。放大到单日保留分钟精度；缺失区间留空。分别显示区间均值、最低和最高观测值，保留峰谷；单分钟内多条样本也按此方式聚合。完整原始时间戳与逐条记录见 WebUI 明细。 有效采样点以 2px 线连接并保留点标记，真实缺测区间断开。",
       "datasource": {
         "type": "victoriametrics-metrics-datasource",
         "uid": "${DS_VICTORIAMETRICS}"
@@ -2767,7 +2767,7 @@
           "custom": {
             "drawStyle": "line",
             "lineInterpolation": "linear",
-            "lineWidth": 0,
+            "lineWidth": 2,
             "fillOpacity": 0,
             "showPoints": "always",
             "pointSize": 3,
@@ -2816,7 +2816,7 @@
         "w": 12,
         "h": 8
       },
-      "description": "按可视时间范围自动降采样，目标约 2000 点，最小查询间隔 1 分钟。放大到单日保留分钟精度；缺失区间留空。分别显示区间均值、最低和最高观测值，保留峰谷；单分钟内多条样本也按此方式聚合。完整原始时间戳与逐条记录见 WebUI 明细。",
+      "description": "按可视时间范围自动降采样，目标约 2000 点，最小查询间隔 1 分钟。放大到单日保留分钟精度；缺失区间留空。分别显示区间均值、最低和最高观测值，保留峰谷；单分钟内多条样本也按此方式聚合。完整原始时间戳与逐条记录见 WebUI 明细。 有效采样点以 2px 线连接并保留点标记，真实缺测区间断开。",
       "datasource": {
         "type": "victoriametrics-metrics-datasource",
         "uid": "${DS_VICTORIAMETRICS}"
@@ -2878,7 +2878,7 @@
           "custom": {
             "drawStyle": "line",
             "lineInterpolation": "linear",
-            "lineWidth": 0,
+            "lineWidth": 2,
             "fillOpacity": 0,
             "showPoints": "always",
             "pointSize": 3,

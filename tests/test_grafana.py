@@ -160,7 +160,8 @@ def test_fine_detail_panels_adapt_resolution_and_preserve_aggregate_semantics():
             for rollup in ('avg_over_time','min_over_time','max_over_time'):
                 assert any(target['expr'].startswith(rollup+'(') for target in panel['targets'])
         custom = panel['fieldConfig']['defaults']['custom']
-        assert custom['spanNulls'] is False and custom['lineWidth'] == 0
+        assert custom['spanNulls'] is False
+        assert custom['lineWidth'] == (0 if panel['title'].startswith('步数') else 2)
         assert 'WebUI' in panel['description'] and '降采样' in panel['description']
 
 

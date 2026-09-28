@@ -101,10 +101,33 @@ def main():
             expressions=[]
             for panel in dashboard['panels']:
                 for target in panel.get('targets',[]):
-                    expr=target.get('expr','').replace('${account:regex}','personal')
+                    expr=target.get('expr','').replace('${account:regex}','personal').replace('$__interval_ms','60000').replace('$__interval','1m')
                     if expr:
                         query(expr)
                         expressions.append(expr)
+            # Adaptive buckets must preserve totals, real zeroes and extremes.
+            t=int(now.timestamp()//300)*300-1800
+            samples=[
+                {'metric':{'__name__':'zepp_steps_minute','account':'downsample-test'},
+                 'timestamps':[(t+i)*1000 for i in (60,120,180,240,300,600,1200)],
+                 'values':[0,3,7,11,2,9,0]},
+                {'metric':{'__name__':'zepp_heart_rate_bpm','account':'downsample-test'},
+                 'timestamps':[(t+i)*1000 for i in (60,120,180,240,300)],
+                 'values':[60,61,190,65,58]}]
+            requests.post(settings.vm_url,data=json_lines(samples),timeout=5).raise_for_status()
+            def rendered(target):
+                return target['expr'].replace('${account:regex}','downsample-test').replace('$__interval_ms','300000').replace('$__interval','5m')
+            fine=[p for p in dashboard['panels'] if p['title'].endswith('· 分钟明细')]
+            steps=next(p for p in fine if p['title'].startswith('步数'))
+            expr=rendered(steps['targets'][0])
+            eventually(lambda:query(expr,at=t+300))
+            assert float(query(expr,at=t+300)[0]['value'][1])==23
+            assert float(query(expr,at=t+600)[0]['value'][1])==9
+            assert query(expr,at=t+900)==[]
+            assert float(query(expr,at=t+1200)[0]['value'][1])==0
+            heart=next(p for p in fine if p['title'].startswith('心率'))
+            values={target['expr'].split('(',1)[0]:float(query(rendered(target),at=t+300)[0]['value'][1]) for target in heart['targets']}
+            assert values=={'avg_over_time':86.8,'min_over_time':58,'max_over_time':190}
             # A missing day must not inherit yesterday's daily value.
             daily=next(expr for expr in expressions if 'zepp_steps_daily' in expr)
             assert query(daily)==[]
@@ -117,7 +140,7 @@ def main():
             db.save(yesterday,'band',{},data,metric_lines(yesterday,data,'personal','Asia/Shanghai',now))
             assert db.stats()['conflicts']==1
             assert db.days(yesterday,yesterday)[0]['summary']['steps']==4321
-            print(f'PASS: isolated cluster import/query, lost-ack restart recovery, revisions; {len(expressions)} dashboard expressions accepted; missing-day/stale-current checks passed.')
+            print(f'PASS: isolated cluster import/query, lost-ack restart recovery, revisions; {len(expressions)} dashboard expressions accepted; missing-day/stale-current and downsampling totals/zeroes/extremes checks passed.')
         finally:
             for name in reversed(created):
                 subprocess.run(['docker','rm','-f',name],stdout=subprocess.DEVNULL,check=False)

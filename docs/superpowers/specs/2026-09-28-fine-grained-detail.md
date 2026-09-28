@@ -25,3 +25,11 @@ Read detail from raw archives, so existing dates gain detail without refetching.
 ## Verification
 
 Test known byte layout, exact times, zero/255, unsupported/truncated/mismatched formats, unfinished-minute cutoff, legacy-archive parsing, repeatable migration/outbox, signed event values and timestamp absence. Browser tests exercise metric switching, zoom, exact timestamp tables and pagination at mobile/desktop widths. Check all dashboard queries in isolated VictoriaMetrics, CI container restart and production archive recovery before marking deployment complete.
+
+## Adaptive display sampling (follow-up)
+
+The user reported a 90-day Grafana query failing at 129,601 points against the VM 30,000 point limit, then explicitly requested appropriate downsampling in both dashboards. Four fine-detail panels had an excessive 100,000 point budget; short-range syntax tests did not cover the range calculation.
+
+Grafana now targets 2,000 points per series with a 1 minute minimum, allowing plugin interval rounding safely below the server limit. Query windows use the plugin's calculated interval. Steps sum observed counts; physiological metrics expose average/min/max rather than discarding peaks. Timestamp guards prevent carry-forward into empty windows. Raw archives and existing metrics remain unchanged. An isolated instance of the installed Grafana image and VM plugin reproduces the old failure and tests 1/30/90/365 day queries against VM read-only. Synthetic isolated VM tests verify adjacent-bucket totals, zeroes, gaps, average and extremes.
+
+Web UI selected-day raw charts use a 600–1,200 point budget based on width. Steps sum integer-minute buckets; incomplete buckets disclose observed/missing counts. Other metrics retain first/last/min/max source points per time bin. Zoom and resize always sample the original immutable arrays; zooming in restores exact observations. Full-resolution tables, exports, stored data and existing intentionally bounded daily / 5 minute comparison views are unchanged.

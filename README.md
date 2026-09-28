@@ -178,4 +178,4 @@ docker pull ghcr.io/kevinmatthe/zepp-report:latest
 
 此次新增的活动/运动/可识别睡眠指标会通过独立的 `metric_backfill` 检查点，从已有归档补入持久投递队列。补导仅允许新增指标名，不重发旧指标、不删除或修改VM历史；中断后继续。完整运动按类型增加 `zepp_workout_type_minutes_daily/current`，日常活动片段使用独立的 `zepp_activity_type_minutes_daily/current`。
 
-分钟步数指标 `zepp_steps_minute` 表示该分钟内的步数（gauge），不是累计 counter。Grafana 分钟明细按一分钟取实际观测，宽时间范围可能降采样；精确原始时间和值可在 Web UI 单日明细表查看。夏令时切换日的步数分钟编码尚未验证，会保留日汇总并说明明细不可用。
+分钟步数指标 `zepp_steps_minute` 表示该分钟内的步数（gauge），不是累计 counter。Grafana 分钟明细按时间范围自适应降采样（约2000点，最小1分钟），步数按区间求和，其余指标显示均值及高低值。Web UI 图表按可视范围与宽度降采样，放大恢复细节；精确原始时间和值始终可在单日明细表查看。夏令时切换日的步数分钟编码尚未验证，会保留日汇总并说明明细不可用。

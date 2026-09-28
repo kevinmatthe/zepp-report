@@ -1,11 +1,12 @@
 import {$,state,escape,number} from './state.js';
 import {plot} from './trend-charts.js';
+import {displaySamples,pixelBudget} from './display-sampling.js';
 
 const metrics={steps:['分钟步数','步'],heart_rate:['心率','bpm'],stress:['压力',''],spo2:['血氧','%'],atl:['ATL','负荷'],ctl:['CTL','负荷'],tsb:['TSB','负荷'],trimp:['TRIMP','负荷'],sport_load:['运动负荷','负荷'],weekly_load:['周负荷','负荷'],sport_optimal_min:['运动负荷建议下限','负荷'],sport_optimal_max:['运动负荷建议上限','负荷'],vo2_max:['VO₂ Max','ml/kg/min']};
 const names={slow_walking:'慢走',fast_walking:'快走',walking:'步行',running:'跑步',light_activity:'轻活动',outdoor_running:'户外跑步',outdoor_cycling:'户外骑行',pool_swimming:'泳池游泳',football:'足球',rope_skipping:'跳绳',hiking:'徒步',strength_training:'力量训练'};
 const valid=value=>value!==null&&value!==undefined&&Number.isFinite(Number(value));
 const exact=value=>valid(value)?escape(String(value)):'—';
-let detail=null,chart=null,rawRows=[],offset=0,episodeOffset=0,workoutOffset=0,initialized=false;
+let detail=null,chart=null,rawRows=[],offset=0,episodeOffset=0,workoutOffset=0,initialized=false,zoomRange={start:0,end:100},timeBounds=[0,1],displayResult=null,displayFrame=null,lastWidth=0;
 const pageSize=50,episodePageSize=20;
 
 function timestamp(value,short=false){
@@ -23,34 +24,66 @@ function renderSamplePage(){
   $('raw-prev').disabled=offset===0;$('raw-next').disabled=offset+pageSize>=rawRows.length;
 }
 function updateZoom(start,end){
+  zoomRange={start:Number(start),end:Number(end)};
   $('raw-chart').dataset.zoomStart=String(start);$('raw-chart').dataset.zoomEnd=String(end);
   $('raw-zoom-start').value=String(start);$('raw-zoom-end').value=String(end);
 }
+function sampledSeries(){
+  const metric=$('raw-metric').value,[label]=metrics[metric];
+  const span=timeBounds[1]-timeBounds[0],from=timeBounds[0]+span*zoomRange.start/100,to=timeBounds[0]+span*zoomRange.end/100;
+  displayResult=displaySamples(rawRows,metric,{from,to,budget:pixelBudget($('raw-chart').clientWidth)});
+  const points=displayResult.points.filter(point=>valid(point.value));
+  const datum=point=>({value:[Number(point.time),Number(point.value)],sample:point});
+  const series=[{id:'raw-main',name:displayResult.method==='sum'?label+'区间合计':label,type:metric==='steps'?'bar':'scatter',data:(metric==='steps'?points.filter(p=>Number(p.value)!==0):points).map(datum),symbolSize:4,barMaxWidth:12,itemStyle:{color:metric==='steps'?'#b9d697':'#80c5bb'},animation:false}];
+  if(metric==='steps')series.push({id:'raw-zero',name:displayResult.method==='sum'?'区间已观测合计为0':'已记录零值',type:'scatter',data:points.filter(p=>Number(p.value)===0).map(datum),symbolSize:4,itemStyle:{color:'#e1b676'},animation:false});
+  const shown=points.length,r=displayResult;
+  $('raw-resolution').textContent=r.method==='sum'
+    ? `当前显示 ${shown} 个区间 / ${r.originalCount} 个原始有效点 · 每 ${number(r.bucketMs/60000)} 分钟按已观测步数求和 · ${r.partialBuckets} 个区间缺少部分分钟，${r.emptyBuckets} 个全缺失区间留空（共缺 ${r.missing} 分钟）`
+    : r.method==='envelope'
+      ? `当前显示 ${shown} / ${r.originalCount} 个原始有效点 · 约每 ${number(r.bucketMs/60000,2)} 分钟保留首末点及最小/最大值，时间戳不变 · 显式缺失 ${r.explicitMissing} 条`
+      : `当前显示 ${shown} / ${r.originalCount} 个原始有效点 · 原始采样精度（未降采样） · 显式缺失 ${r.explicitMissing} 条`;
+  Object.assign($('raw-chart').dataset,{displayMethod:r.method,displayCount:String(shown),originalCount:String(r.originalCount),bucketMs:String(r.bucketMs),displayBudget:String(r.budget),visibleFrom:String(from),visibleTo:String(to)});
+  return series;
+}
+function emptyGraphic(){return displayResult?.points.some(p=>valid(p.value))?[]:[{type:'text',left:'center',top:'middle',style:{text:'当前时间范围暂无有效采样',fill:'#a5b4a7',fontSize:14}}]}
+function refreshDisplay(){
+  if(!chart||!detail)return;
+  const series=sampledSeries();
+  // Full axis bounds stay fixed; replacing only presentation series leaves the
+  // user's zoom window intact and never emits another datazoom event.
+  chart.setOption({series,legend:{data:series.map(s=>s.name)},graphic:emptyGraphic()},{replaceMerge:['series','graphic'],silent:true});
+}
+function scheduleDisplay(){cancelAnimationFrame(displayFrame);displayFrame=requestAnimationFrame(refreshDisplay)}
 function renderRawChart(){
   const metric=$('raw-metric').value,[label,unit]=metrics[metric];
   const source=detail?.event_series?.[metric]||detail?.[metric]||[];
   rawRows=source.filter(point=>valid(point.time)).slice().sort((a,b)=>a.time-b.time);
   const observed=rawRows.filter(point=>valid(point.value)),zeros=observed.filter(point=>Number(point.value)===0);
+  timeBounds=[Number(rawRows[0]?.time??0),Number(rawRows.at(-1)?.time??1)];
+  if(timeBounds[1]===timeBounds[0])timeBounds[1]+=1;
+  updateZoom(0,100);
   const c=detail?.coverage?.[metric];
-  $('raw-coverage').textContent=`已记录 ${number(observed.length)} 个有效采样点 · 其中零值 ${number(zeros.length)} 个 · 显式缺失 ${number(rawRows.length-observed.length)} 条${c?.expected_minutes!=null?` · 观测 ${number(c.observed_minutes)} / ${number(c.expected_minutes)} 分钟`:''}`;
-  $('raw-date').textContent=`${detail.date} · ${state.timezone} · 原始采样时刻`;
-  $('raw-note').textContent=(metric==='steps'?'柱图是设备记录的每分钟步数，底部圆点标记真实零值；缺失时刻不补柱。':'仅绘制实际记录的点，不连接未采样时段。')+' 不做 5 分钟聚合或数值插值。拖动图下滑块缩放，图内拖动平移。';
+  $('raw-coverage').textContent=`完整记录 ${number(observed.length)} 个有效采样点 · 其中零值 ${number(zeros.length)} 个 · 显式缺失 ${number(rawRows.length-observed.length)} 条${c?.expected_minutes!=null?` · 观测 ${number(c.observed_minutes)} / ${number(c.expected_minutes)} 分钟`:''}`;
+  $('raw-date').textContent=`${detail.date} · ${state.timezone} · 完整原始记录可查表`;
+  $('raw-note').textContent=(metric==='steps'?'宽视图按整数分钟区间求和，缺失不补零；缩小范围恢复每分钟记录。':'宽视图保留分段极值及首末点，不连接未采样时段；缩小范围恢复原始点。')+' 仅图形按宽度与可见范围降采样，表格始终保留完整原始数据。拖动滑块缩放，图内拖动平移。';
   if(metric==='steps'&&detail.steps_quality?.message)$('raw-note').textContent+=' '+detail.steps_quality.message;
   if(metric==='steps'&&detail.activity_samples?.length)$('raw-note').textContent+=' 表内活动与强度保留来源原始代码，含义及单位尚未确认。';
-  const points=observed.map(point=>[Number(point.time),Number(point.value)]);
-  const series=[{name:label,type:metric==='steps'?'bar':'scatter',data:points,symbolSize:5,barMaxWidth:12,itemStyle:{color:metric==='steps'?'#b9d697':'#80c5bb'},animation:false}];
-  if(metric==='steps')series.push({name:'已记录零值',type:'scatter',data:zeros.map(p=>[Number(p.time),0]),symbolSize:5,itemStyle:{color:'#e1b676'},animation:false});
+  const series=sampledSeries();
   chart=plot('raw-chart',[],series,null,{
     animation:false,
     grid:{left:48,right:20,top:40,bottom:85},
-    xAxis:{type:'time',axisLabel:{color:'#aab6a8',formatter:value=>timestamp(value,true).slice(0,8)},axisLine:{lineStyle:{color:'#354239'}},splitLine:{show:false}},
+    xAxis:{type:'time',min:timeBounds[0],max:timeBounds[1],show:rawRows.length>0,axisLabel:{color:'#aab6a8',formatter:value=>timestamp(value,true).slice(0,8)},axisLine:{lineStyle:{color:'#354239'}},splitLine:{show:false}},
     yAxis:{type:'value',name:unit,nameTextStyle:{color:'#aab6a8'},scale:metric!=='steps',...(metric==='steps'?{min:0}:{}),axisLabel:{color:'#aab6a8'},splitLine:{lineStyle:{color:'#2a382f'}}},
-    tooltip:{trigger:'item',confine:true,formatter:point=>`${escape(timestamp(point.value[0]))}<br>${escape(label)}：${exact(point.value[1])} ${escape(unit)}`},
+    tooltip:{trigger:'item',confine:true,formatter:point=>{
+      const sample=point.data.sample;
+      return sample.bucketStart!=null
+        ? `${escape(timestamp(sample.bucketStart))} — ${escape(timestamp(sample.bucketEnd))}<br>已观测步数合计：${exact(sample.value)} 步<br>已记录 ${sample.count} / ${sample.expected} 分钟 · 缺失 ${sample.missing} 分钟`
+        : `${escape(timestamp(point.value[0]))}<br>${escape(label)}：${exact(point.value[1])} ${escape(unit)}`;
+    }},
     dataZoom:[{type:'slider',start:0,end:100,bottom:8,height:25,filterMode:'none',showDataShadow:false,labelFormatter:value=>timestamp(value,true),textStyle:{color:'#aab6a8'},borderColor:'#43563f',fillerColor:'#b9d69725',handleStyle:{color:'#b9d697'}},{type:'inside',start:0,end:100,filterMode:'none',zoomOnMouseWheel:'ctrl',moveOnMouseMove:true,moveOnMouseWheel:false}],
-    graphic:observed.length?[]:[{type:'text',left:'center',top:'middle',style:{text:'该日暂无原始采样记录',fill:'#a5b4a7',fontSize:14}}],
+    graphic:emptyGraphic(),
   });
-  updateZoom(0,100);
-  chart.off('datazoom');chart.on('datazoom',event=>{const zoom=event.batch?.[0]||event;const current=chart.getOption().dataZoom[0];updateZoom(zoom.start??current.start,zoom.end??current.end)});
+  chart.off('datazoom');chart.on('datazoom',event=>{const zoom=event.batch?.[0]||event;const current=chart.getOption().dataZoom[0];updateZoom(zoom.start??current.start,zoom.end??current.end);scheduleDisplay()});
   renderSamplePage();
 }
 function renderEpisodes(){
@@ -65,6 +98,7 @@ function renderEpisodes(){
 }
 function setup(){
   if(initialized)return;initialized=true;
+  new ResizeObserver(()=>{const width=$('raw-chart').clientWidth;if(width>0&&width!==lastWidth){lastWidth=width;scheduleDisplay()}}).observe($('raw-chart'));
   $('raw-metric').onchange=()=>{offset=0;renderRawChart()};
   $('raw-prev').onclick=()=>{offset=Math.max(0,offset-pageSize);renderSamplePage()};
   $('raw-next').onclick=()=>{offset+=pageSize;renderSamplePage()};

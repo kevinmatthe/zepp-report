@@ -123,7 +123,7 @@ def test_typed_duration_series_preserve_type_labels_and_freshness():
 
 def test_spo2_has_fresh_today_average_and_daily_and_observed_trends():
     selected = [(p, t) for p, t in targets() if 'zepp_spo2_' in t['expr']]
-    assert len(selected) == 4
+    assert len({p['id'] for p, _ in selected}) == 4
     expressions = ' '.join(t['expr'] for _, t in selected)
     for name in ('zepp_spo2_avg_current', 'zepp_spo2_avg_daily', 'zepp_spo2_percent'):
         assert name in expressions
@@ -135,25 +135,36 @@ def test_spo2_has_fresh_today_average_and_daily_and_observed_trends():
         if '_current' in target['expr']:
             assert panel['gridPos']['y'] < 13 and panel['type'] == 'stat'
         if 'zepp_spo2_percent{' in target['expr']:
-            assert ('[1m]' if panel['title'].endswith('· 分钟明细') else '[5m]') in target['expr']
+            assert ('[$__interval]' if panel['title'].endswith('· 分钟明细') else '[5m]') in target['expr']
             assert panel['fieldConfig']['defaults']['custom']['spanNulls'] is False
 
 
-def test_fine_detail_panels_bound_samples_to_one_minute_without_carry_forward():
+def test_fine_detail_panels_adapt_resolution_and_preserve_aggregate_semantics():
     panels = [p for p in dashboard()['panels'] if p['title'].endswith('· 分钟明细')]
     assert len(panels) == 4
-    expected = {'zepp_steps_minute', 'zepp_heart_rate_bpm', 'zepp_stress', 'zepp_spo2_percent'}
-    used = set()
     for panel in panels:
-        assert panel['interval'] == '1m' and panel['maxDataPoints'] >= 43200
-        target, = panel['targets']
-        expr = target['expr']
-        used |= set(re.findall(r'\bzepp_[a-z0-9_]+\b', expr))
-        assert target['interval'] == '1m'
-        assert 'last_over_time(' in expr and '[1m]' in expr
-        assert 'tlast_over_time(' in expr and '> time() - 60' in expr
-        assert 'rate(' not in expr and 'sum_over_time(' not in expr
+        assert panel['interval'] == '1m'
+        # Plugin interval rounding may return up to ~2x the requested budget.
+        assert 1000 <= panel['maxDataPoints'] <= 5000
+        for target in panel['targets']:
+            expr = target['expr']
+            assert target['interval'] == '1m'
+            assert '[$__interval]' in expr
+            assert 'tlast_over_time(' in expr and '> time() - $__interval_ms / 1000' in expr
+            assert 'rate(' not in expr and 'or vector(0)' not in expr
+        if panel['title'].startswith('步数'):
+            assert len(panel['targets']) == 1
+            assert 'sum_over_time(zepp_steps_minute' in panel['targets'][0]['expr']
+        else:
+            assert len(panel['targets']) == 3
+            for rollup in ('avg_over_time','min_over_time','max_over_time'):
+                assert any(target['expr'].startswith(rollup+'(') for target in panel['targets'])
         custom = panel['fieldConfig']['defaults']['custom']
         assert custom['spanNulls'] is False and custom['lineWidth'] == 0
-        assert '1 分钟' in panel['description'] and 'WebUI' in panel['description']
-    assert used == expected
+        assert 'WebUI' in panel['description'] and '降采样' in panel['description']
+
+
+def test_dashboard_point_budgets_leave_room_below_vm_30000_limit():
+    for panel in dashboard()['panels']:
+        if panel['type']=='timeseries':
+            assert 0<panel.get('maxDataPoints',1000)<=10000

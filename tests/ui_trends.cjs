@@ -7,7 +7,7 @@ const path = require("node:path");
   try {
     const page = await browser.newPage();
     const errors = [], queries = [], writes = [];
-    let dailySteps=7500, oxygenMissing=false;
+    let dailySteps=7500, oxygenMissing=false,denseRaw=false;
     page.on("pageerror", (e) => errors.push(e.message));
     await page.route("http://zepp.test/**", async (r) => {
       const u = new URL(r.request().url()), p = u.pathname;
@@ -26,7 +26,7 @@ const path = require("node:path");
         const oxygen=u.searchParams.get('metric')==='spo2';
         return reply({buckets:Array.from({length:288},(_,i)=>({minute:i*5,n:oxygen&&oxygenMissing?0:20,mean:oxygen?(oxygenMissing?null:97.6):65,p25:oxygen?(oxygenMissing?null:97):60,p50:oxygen?(oxygenMissing?null:98):65,p75:oxygen?(oxygenMissing?null:99):75,p10:oxygen?(oxygenMissing?null:96):55,p90:oxygen?(oxygenMissing?null:100):85}))});
       }
-      if (p.startsWith("/api/days/")) { if(p.endsWith("2026-09-10"))await new Promise(resolve=>setTimeout(resolve,350)); return reply({ date: p.split("/").at(-1), profiles: { heart_rate: [{ minute: 0, value: 75 }], stress: [], spo2:[{minute:0,value:98},{minute:5,value:null}] }, coverage:{spo2:{observed_minutes:1,expected_minutes:1440,n:1}}, steps:Array.from({length:61},(_,i)=>({time:Date.parse('2026-09-28T00:00:00.123+08:00')+i*60000,value:i===1?null:i===0?0:i===2?255:i+3})),steps_quality:{status:'observed',message:'来自验证后的分钟记录'},activity_samples:[{time:Date.parse('2026-09-28T00:00:00.123+08:00'),steps:0,category_raw:5,intensity_raw:20}],heart_rate:[{time:Date.parse('2026-09-28T00:00:37.250+08:00'),value:72}],event_series:{trimp:[{time:Date.parse('2026-09-28T15:32:15.999+08:00'),value:12.75}]},summary: { steps:7e3,actual_sleep_minutes:150,sleep_light_minutes:60,sleep_deep_minutes:60,sleep_rem_minutes:30,sleep_awake_minutes:10,sleep_gap_minutes:50,sleep_overlap_minutes:0,sleep_stage_coverage:160/210 }, activities:Array.from({length:25},(_,i)=>({start:Date.parse('2026-09-28T08:00:00+08:00')+i*60000,end:Date.parse('2026-09-28T08:01:00+08:00')+i*60000,minutes:1,type:'walking',mode:1,steps:i,distance_meters:20,calories:1})),workouts:[{id:'run-1',type:'outdoor_running',type_code:1,start:Date.parse('2026-09-28T09:00:00+08:00'),end:Date.parse('2026-09-28T09:30:00+08:00'),minutes:30,distance_meters:5000,calories:250,average_heart_rate:135}], sleep_stages:[{stage:'light',start:Date.parse('2026-09-27T23:30:00+08:00'),end:Date.parse('2026-09-28T00:30:00+08:00')},{stage:'deep',start:Date.parse('2026-09-28T01:00:00+08:00'),end:Date.parse('2026-09-28T02:00:00+08:00')},{stage:'rem',start:Date.parse('2026-09-28T02:00:00+08:00'),end:Date.parse('2026-09-28T02:30:00+08:00')},{stage:'awake',start:Date.parse('2026-09-28T02:30:00+08:00'),end:Date.parse('2026-09-28T02:40:00+08:00')},{stage:'unknown',start:Date.parse('2026-09-28T02:40:00+08:00'),end:Date.parse('2026-09-28T03:00:00+08:00')}] }); }
+      if (p.startsWith("/api/days/")) { if(p.endsWith("2026-09-10"))await new Promise(resolve=>setTimeout(resolve,350)); return reply({ date: p.split("/").at(-1), profiles: { heart_rate: [{ minute: 0, value: 75 }], stress: [], spo2:[{minute:0,value:98},{minute:5,value:null}] }, coverage:{spo2:{observed_minutes:1,expected_minutes:1440,n:1}}, steps:Array.from({length:denseRaw?1440:61},(_,i)=>({time:Date.parse('2026-09-28T00:00:00.123+08:00')+i*60000,value:i===1?null:i===0?0:i===2?255:i+3})),steps_quality:{status:'observed',message:'来自验证后的分钟记录'},activity_samples:[{time:Date.parse('2026-09-28T00:00:00.123+08:00'),steps:0,category_raw:5,intensity_raw:20}],heart_rate:denseRaw?Array.from({length:1440},(_,i)=>({time:Date.parse('2026-09-28T00:00:37.250+08:00')+i*60000,value:i===501?190:i===700?35:72})):[{time:Date.parse('2026-09-28T00:00:37.250+08:00'),value:72}],event_series:{trimp:[{time:Date.parse('2026-09-28T15:32:15.999+08:00'),value:12.75}]},summary: { steps:7e3,actual_sleep_minutes:150,sleep_light_minutes:60,sleep_deep_minutes:60,sleep_rem_minutes:30,sleep_awake_minutes:10,sleep_gap_minutes:50,sleep_overlap_minutes:0,sleep_stage_coverage:160/210 }, activities:Array.from({length:25},(_,i)=>({start:Date.parse('2026-09-28T08:00:00+08:00')+i*60000,end:Date.parse('2026-09-28T08:01:00+08:00')+i*60000,minutes:1,type:'walking',mode:1,steps:i,distance_meters:20,calories:1})),workouts:[{id:'run-1',type:'outdoor_running',type_code:1,start:Date.parse('2026-09-28T09:00:00+08:00'),end:Date.parse('2026-09-28T09:30:00+08:00'),minutes:30,distance_meters:5000,calories:250,average_heart_rate:135}], sleep_stages:[{stage:'light',start:Date.parse('2026-09-27T23:30:00+08:00'),end:Date.parse('2026-09-28T00:30:00+08:00')},{stage:'deep',start:Date.parse('2026-09-28T01:00:00+08:00'),end:Date.parse('2026-09-28T02:00:00+08:00')},{stage:'rem',start:Date.parse('2026-09-28T02:00:00+08:00'),end:Date.parse('2026-09-28T02:30:00+08:00')},{stage:'awake',start:Date.parse('2026-09-28T02:30:00+08:00'),end:Date.parse('2026-09-28T02:40:00+08:00')},{stage:'unknown',start:Date.parse('2026-09-28T02:40:00+08:00'),end:Date.parse('2026-09-28T03:00:00+08:00')}] }); }
       return reply({ timezone: "Asia/Shanghai", days: Array.from({ length: 28 }, (_, i) => ({ date: `2026-09-${String(i + 1).padStart(2, "0")}`, summary: { steps: 6e3 + i * 120, actual_sleep_minutes: 430, walking_minutes: 35 }, spo2:oxygenMissing?{n:0,p50:null,p25:null,p75:null,mean:null}:{n:20,p25:97,p50:98,p75:99,mean:97.6}, heart_rate: { n: 100, p25: 60, p50: 68, p75: 77, mean: 69 }, stress: { n: 30, p25: 20, p50: 30, p75: 40 } })), summary: { spo2_avg:{value:oxygenMissing?null:97.6,valid_days:oxygenMissing?0:28,total_days:30}, steps: { value: dailySteps*28, day_mean: dailySteps, aggregation: "sum", unit: "步", valid_days: 28, total_days: 30, previous: 182e3, previous_day_mean: 6500, previous_valid_days: 28, previous_total_days: 30, delta: 28e3, quality: "partial", comparison_quality: "complete" } } });
     });
     await page.goto("http://zepp.test/?from=2026-09-01&to=2026-09-28");
@@ -87,6 +87,30 @@ const path = require("node:path");
     await page.locator('#raw-values summary').click();
     await page.locator('#activity-records summary').click();
     await page.locator('#workout-records summary').click();
+    denseRaw=true;await page.setViewportSize({width:375,height:950});await page.locator('#refresh').click();
+    await page.waitForFunction(()=>document.querySelector('#raw-chart')?.dataset.displayMethod==='sum');
+    assert.ok(Number(await page.locator('#raw-chart').getAttribute('data-display-count'))<=600,'mobile step display respects pixel budget');
+    assert.ok((await page.locator('#raw-resolution').innerText()).includes('分钟按已观测步数求和'),'step aggregation resolution is explicit');
+    assert.ok((await page.locator('#raw-page').textContent()).includes('1440'),'full raw table count is unchanged');
+    await page.locator('#raw-zoom-end').fill('20');await page.locator('#raw-zoom-end').dispatchEvent('input');
+    await page.waitForFunction(()=>document.querySelector('#raw-chart')?.dataset.displayMethod==='raw');
+    assert.equal(await page.locator('#raw-chart').getAttribute('data-display-count'),await page.locator('#raw-chart').getAttribute('data-original-count'),'narrow zoom restores original visible samples');
+    await page.locator('#raw-zoom-start').fill('5');await page.locator('#raw-zoom-start').dispatchEvent('input');
+    await page.setViewportSize({width:768,height:950});await page.waitForTimeout(200);
+    assert.equal(await page.locator('#raw-chart').getAttribute('data-zoom-start'),'5','resize must preserve zoom start');
+    assert.equal(await page.locator('#raw-chart').getAttribute('data-zoom-end'),'20','resize must preserve zoom end');
+    assert.ok((await page.locator('#raw-page').textContent()).includes('1440'),'zoom does not shorten original table');
+    await page.locator('#raw-metric').selectOption('heart_rate');
+    await page.waitForFunction(()=>document.querySelector('#raw-chart')?.dataset.displayMethod==='envelope');
+    assert.ok((await page.locator('#raw-resolution').innerText()).includes('最小/最大值'),'vital display documents envelope');
+    await page.locator('#raw-zoom-end').fill('1');await page.locator('#raw-zoom-end').dispatchEvent('input');
+    await page.waitForFunction(()=>document.querySelector('#raw-chart')?.dataset.displayMethod==='raw');
+    await page.locator('#raw-reset').click();
+    await page.waitForFunction(()=>document.querySelector('#raw-chart')?.dataset.displayMethod==='envelope');
+    assert.equal(await page.locator('#raw-chart').getAttribute('data-original-count'),'1440','expanding zoom recovers the entire original array');
+    assert.ok(await page.locator('#raw-chart').evaluate(el=>Number(el.dataset.displayCount)<=Number(el.dataset.displayBudget)),'expanded vital envelope respects pixel budget');
+    denseRaw=false;await page.locator('#raw-metric').selectOption('steps');await page.locator('#refresh').click();
+    await page.waitForFunction(()=>document.querySelector('#raw-page')?.textContent.startsWith('61 '));
     await page.locator('#spo2-chart canvas').waitFor();
     assert.equal(await page.locator('#spo2-value').innerText(),'97.6','blood oxygen headline uses observed mean');
     await page.locator('#profile-metric').selectOption('spo2');

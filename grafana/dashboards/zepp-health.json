@@ -2512,21 +2512,21 @@
         "w": 12,
         "h": 8
       },
-      "description": "以 1 分钟查询网格显示最近 60 秒内最后一条设备观测；时间戳保护避免旧样本跨分钟延续，缺失保持空白，不连接观测点。建议缩放到单日；较长范围可能提高查询步长而遗漏中间观测，同一分钟多条观测只取最后一条。完整事件时间与逐条记录见 WebUI 明细。 每个数值为该源分钟内步数，不是累计计数器，不计算速率或跨分钟累加。",
+      "description": "按可视时间范围自动降采样，目标约 2000 点，最小查询间隔 1 分钟。放大到单日保留分钟精度；缺失区间留空。每个柱值为查询区间内实际记录步数之和，不是累计 counter，不计算速率。完整原始时间戳与逐条记录见 WebUI 明细。",
       "datasource": {
         "type": "victoriametrics-metrics-datasource",
         "uid": "${DS_VICTORIAMETRICS}"
       },
       "interval": "1m",
-      "maxDataPoints": 100000,
+      "maxDataPoints": 2000,
       "targets": [
         {
           "datasource": {
             "type": "victoriametrics-metrics-datasource",
             "uid": "${DS_VICTORIAMETRICS}"
           },
-          "expr": "last_over_time(zepp_steps_minute{account=~\"${account:regex}\"}[1m]) and (tlast_over_time(zepp_steps_minute{account=~\"${account:regex}\"}[1m]) > time() - 60)",
-          "legendFormat": "步数",
+          "expr": "sum_over_time(zepp_steps_minute{account=~\"${account:regex}\"}[$__interval]) and (tlast_over_time(zepp_steps_minute{account=~\"${account:regex}\"}[$__interval]) > time() - $__interval_ms / 1000)",
+          "legendFormat": "区间步数合计",
           "refId": "A",
           "editorMode": "code",
           "instant": false,
@@ -2596,22 +2596,50 @@
         "w": 12,
         "h": 8
       },
-      "description": "以 1 分钟查询网格显示最近 60 秒内最后一条设备观测；时间戳保护避免旧样本跨分钟延续，缺失保持空白，不连接观测点。建议缩放到单日；较长范围可能提高查询步长而遗漏中间观测，同一分钟多条观测只取最后一条。完整事件时间与逐条记录见 WebUI 明细。",
+      "description": "按可视时间范围自动降采样，目标约 2000 点，最小查询间隔 1 分钟。放大到单日保留分钟精度；缺失区间留空。分别显示区间均值、最低和最高观测值，保留峰谷；单分钟内多条样本也按此方式聚合。完整原始时间戳与逐条记录见 WebUI 明细。",
       "datasource": {
         "type": "victoriametrics-metrics-datasource",
         "uid": "${DS_VICTORIAMETRICS}"
       },
       "interval": "1m",
-      "maxDataPoints": 100000,
+      "maxDataPoints": 2000,
       "targets": [
         {
           "datasource": {
             "type": "victoriametrics-metrics-datasource",
             "uid": "${DS_VICTORIAMETRICS}"
           },
-          "expr": "last_over_time(zepp_heart_rate_bpm{account=~\"${account:regex}\"}[1m]) and (tlast_over_time(zepp_heart_rate_bpm{account=~\"${account:regex}\"}[1m]) > time() - 60)",
-          "legendFormat": "心率",
+          "expr": "avg_over_time(zepp_heart_rate_bpm{account=~\"${account:regex}\"}[$__interval]) and (tlast_over_time(zepp_heart_rate_bpm{account=~\"${account:regex}\"}[$__interval]) > time() - $__interval_ms / 1000)",
+          "legendFormat": "区间均值",
           "refId": "A",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "format": "time_series",
+          "interval": "1m"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "${DS_VICTORIAMETRICS}"
+          },
+          "expr": "min_over_time(zepp_heart_rate_bpm{account=~\"${account:regex}\"}[$__interval]) and (tlast_over_time(zepp_heart_rate_bpm{account=~\"${account:regex}\"}[$__interval]) > time() - $__interval_ms / 1000)",
+          "legendFormat": "区间最低",
+          "refId": "B",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "format": "time_series",
+          "interval": "1m"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "${DS_VICTORIAMETRICS}"
+          },
+          "expr": "max_over_time(zepp_heart_rate_bpm{account=~\"${account:regex}\"}[$__interval]) and (tlast_over_time(zepp_heart_rate_bpm{account=~\"${account:regex}\"}[$__interval]) > time() - $__interval_ms / 1000)",
+          "legendFormat": "区间最高",
+          "refId": "C",
           "editorMode": "code",
           "instant": false,
           "range": true,
@@ -2678,22 +2706,50 @@
         "w": 12,
         "h": 8
       },
-      "description": "以 1 分钟查询网格显示最近 60 秒内最后一条设备观测；时间戳保护避免旧样本跨分钟延续，缺失保持空白，不连接观测点。建议缩放到单日；较长范围可能提高查询步长而遗漏中间观测，同一分钟多条观测只取最后一条。完整事件时间与逐条记录见 WebUI 明细。 压力源记录通常每 5 分钟一次，空白分钟不代表零压力。",
+      "description": "按可视时间范围自动降采样，目标约 2000 点，最小查询间隔 1 分钟。放大到单日保留分钟精度；缺失区间留空。分别显示区间均值、最低和最高观测值，保留峰谷；单分钟内多条样本也按此方式聚合。完整原始时间戳与逐条记录见 WebUI 明细。",
       "datasource": {
         "type": "victoriametrics-metrics-datasource",
         "uid": "${DS_VICTORIAMETRICS}"
       },
       "interval": "1m",
-      "maxDataPoints": 100000,
+      "maxDataPoints": 2000,
       "targets": [
         {
           "datasource": {
             "type": "victoriametrics-metrics-datasource",
             "uid": "${DS_VICTORIAMETRICS}"
           },
-          "expr": "last_over_time(zepp_stress{account=~\"${account:regex}\"}[1m]) and (tlast_over_time(zepp_stress{account=~\"${account:regex}\"}[1m]) > time() - 60)",
-          "legendFormat": "压力",
+          "expr": "avg_over_time(zepp_stress{account=~\"${account:regex}\"}[$__interval]) and (tlast_over_time(zepp_stress{account=~\"${account:regex}\"}[$__interval]) > time() - $__interval_ms / 1000)",
+          "legendFormat": "区间均值",
           "refId": "A",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "format": "time_series",
+          "interval": "1m"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "${DS_VICTORIAMETRICS}"
+          },
+          "expr": "min_over_time(zepp_stress{account=~\"${account:regex}\"}[$__interval]) and (tlast_over_time(zepp_stress{account=~\"${account:regex}\"}[$__interval]) > time() - $__interval_ms / 1000)",
+          "legendFormat": "区间最低",
+          "refId": "B",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "format": "time_series",
+          "interval": "1m"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "${DS_VICTORIAMETRICS}"
+          },
+          "expr": "max_over_time(zepp_stress{account=~\"${account:regex}\"}[$__interval]) and (tlast_over_time(zepp_stress{account=~\"${account:regex}\"}[$__interval]) > time() - $__interval_ms / 1000)",
+          "legendFormat": "区间最高",
+          "refId": "C",
           "editorMode": "code",
           "instant": false,
           "range": true,
@@ -2760,22 +2816,50 @@
         "w": 12,
         "h": 8
       },
-      "description": "以 1 分钟查询网格显示最近 60 秒内最后一条设备观测；时间戳保护避免旧样本跨分钟延续，缺失保持空白，不连接观测点。建议缩放到单日；较长范围可能提高查询步长而遗漏中间观测，同一分钟多条观测只取最后一条。完整事件时间与逐条记录见 WebUI 明细。 血氧源观测可能不规则，空白分钟不代表零血氧。",
+      "description": "按可视时间范围自动降采样，目标约 2000 点，最小查询间隔 1 分钟。放大到单日保留分钟精度；缺失区间留空。分别显示区间均值、最低和最高观测值，保留峰谷；单分钟内多条样本也按此方式聚合。完整原始时间戳与逐条记录见 WebUI 明细。",
       "datasource": {
         "type": "victoriametrics-metrics-datasource",
         "uid": "${DS_VICTORIAMETRICS}"
       },
       "interval": "1m",
-      "maxDataPoints": 100000,
+      "maxDataPoints": 2000,
       "targets": [
         {
           "datasource": {
             "type": "victoriametrics-metrics-datasource",
             "uid": "${DS_VICTORIAMETRICS}"
           },
-          "expr": "last_over_time(zepp_spo2_percent{account=~\"${account:regex}\"}[1m]) and (tlast_over_time(zepp_spo2_percent{account=~\"${account:regex}\"}[1m]) > time() - 60)",
-          "legendFormat": "血氧 SpO₂",
+          "expr": "avg_over_time(zepp_spo2_percent{account=~\"${account:regex}\"}[$__interval]) and (tlast_over_time(zepp_spo2_percent{account=~\"${account:regex}\"}[$__interval]) > time() - $__interval_ms / 1000)",
+          "legendFormat": "区间均值",
           "refId": "A",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "format": "time_series",
+          "interval": "1m"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "${DS_VICTORIAMETRICS}"
+          },
+          "expr": "min_over_time(zepp_spo2_percent{account=~\"${account:regex}\"}[$__interval]) and (tlast_over_time(zepp_spo2_percent{account=~\"${account:regex}\"}[$__interval]) > time() - $__interval_ms / 1000)",
+          "legendFormat": "区间最低",
+          "refId": "B",
+          "editorMode": "code",
+          "instant": false,
+          "range": true,
+          "format": "time_series",
+          "interval": "1m"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "${DS_VICTORIAMETRICS}"
+          },
+          "expr": "max_over_time(zepp_spo2_percent{account=~\"${account:regex}\"}[$__interval]) and (tlast_over_time(zepp_spo2_percent{account=~\"${account:regex}\"}[$__interval]) > time() - $__interval_ms / 1000)",
+          "legendFormat": "区间最高",
+          "refId": "C",
           "editorMode": "code",
           "instant": false,
           "range": true,

@@ -66,13 +66,14 @@ def test_vm_outage_keeps_pending_then_retry_acks(tmp_path):
     store.save('2026-09-27','band',{}, {'summary':{'steps':123}},[line])
     vm=VM(fail=True)
     service=SyncService(settings,store,transport=vm)
-    service.flush()
+    assert service.flush() is False
     assert len(store.pending())==1
     assert service.status()['vm_error']
     vm.fail=False
-    service.flush(force=True)
+    assert service.flush(force=True) is True
     assert store.pending()==[]
     assert json.loads(vm.payloads[-1].splitlines()[0])==line
+    assert service.flush() is False
 
 
 def test_daily_and_current_have_distinct_names_and_times():
@@ -269,3 +270,39 @@ def test_shutdown_uses_shared_budget_and_keeps_lock_until_every_worker_exits(tmp
             fcntl.flock(probe,fcntl.LOCK_EX|fcntl.LOCK_NB)
     finally:
         service.lock_file.close()
+
+
+@pytest.mark.parametrize('auth_required',[False,True])
+@pytest.mark.parametrize('delivery_fails',[False,True])
+def test_delivery_progress_controls_idle_wait_without_bypassing_backoff(tmp_path,monkeypatch,auth_required,delivery_fails):
+    import zepp_report.sync as sync_module
+    settings,store=setup(tmp_path)
+    store.save('2026-09-27','band',{}, {'summary':{'steps':123}},[
+        {'metric':{'__name__':'zepp_steps_daily','account':'personal'},'values':[123],'timestamps':[1000]}])
+    vm=VM(fail=delivery_fails)
+    service=SyncService(settings,store,client_factory=lambda _:Client(),transport=vm)
+    store.set_meta('next_sync',9999999999)
+    store.set_meta('auth_required',auth_required)
+    store.set_meta('auth_fingerprint',service.credential_fingerprint())
+    service.next_telemetry=float('inf')
+    clock=[0.0]
+    waits=[]
+    monkeypatch.setattr(sync_module.time,'monotonic',lambda:clock[0])
+    class Stop:
+        def is_set(self): return len(waits)>=3
+        def wait(self,seconds):
+            waits.append(seconds)
+            clock[0]+=seconds
+    service.stop_event=Stop()
+    service.run()
+    assert store.stats()['tasks']['done']==0
+    assert store.meta('auth_required') is auth_required
+    if delivery_fails:
+        assert waits==[2,2,2]
+        assert len(vm.payloads)==2  # Third iteration remains within the four-second retry backoff.
+        assert service.next_flush==6
+        assert len(store.pending())==1
+    else:
+        assert waits==[.3,2,2]
+        assert len(vm.payloads)==1
+        assert store.pending()==[]

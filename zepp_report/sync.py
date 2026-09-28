@@ -121,10 +121,10 @@ class SyncService:
 
     def flush(self,force=False):
         if not force and time.monotonic() < self.next_flush:
-            return
+            return False
         rows=self.store.pending()
         if not rows:
-            return
+            return False
         ids=[r['id'] for r in rows]
         self.store.attempted(ids)
         headers={'Content-Type':'application/json'}
@@ -139,11 +139,12 @@ class SyncService:
             self.vm_failures+=1
             self.vm_error='VictoriaMetrics 写入失败，数据已保留并将自动重试'
             self.next_flush=time.monotonic()+min(300,2**min(self.vm_failures,8))
-            return
+            return False
         self.store.ack(ids)
         self.vm_error=None
         self.vm_failures=0
         self.next_flush=0
+        return True
 
     def status(self):
         return dict(self.store.stats(), analytics=self.analytics.status(), vm_audit=self.vm_audit.status(),
@@ -165,7 +166,7 @@ class SyncService:
                     self.schedule()
                 worked=self.tick()
                 self.telemetry()
-                self.flush()
+                worked=self.flush() or worked
                 self.worker_error=None
                 self.stop_event.wait(0.3 if worked else 2)
             except Exception:

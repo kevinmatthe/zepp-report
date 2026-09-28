@@ -53,8 +53,8 @@ services:
       - "8428"
     volumes:
       - ./vm-data:/storage
-    labels:
-      traefik.enable: "false"
+    # labels:
+    #   traefik.enable: "false"
 
   zepp-grafana:
     profiles: [grafana]

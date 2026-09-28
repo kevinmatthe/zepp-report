@@ -36,10 +36,11 @@ with tempfile.TemporaryDirectory(prefix='zepp-compose-') as td:
   cfg=Settings(p/'audit',{'ADMIN_PASSWORD':'isolated-test-password','VM_IMPORT_URL':url+'/api/v1/import','VM_QUERY_URL':url,'VM_RETENTION_DAYS':'3650','VM_DEDUP_INTERVAL_SECONDS':'.001'})
   db=Store(p/'audit/db');audit=VMAuditor(cfg,db)
   ts=1767225600000;day='2026-01-01'
-  db.save(day,'band',{}, {'summary':{'steps':321}},[{'metric':{'__name__':'zepp_steps_daily','account':'personal'},'timestamps':[ts],'values':[321]}])
+  db.save(day,'band',{}, {'summary':{'steps':321}},[{'metric':{'__name__':'zepp_steps_daily','account':'personal'},'timestamps':[ts],'values':[321]},
+      {'metric':{'__name__':'zepp_spo2_avg_daily','account':'personal'},'timestamps':[ts],'values':[96.12345678901234]}])
   db.ack([r['id'] for r in db.pending()]) # simulate successful HTTP acknowledgement without persistence
   with db.connect() as con: con.execute('UPDATE vm_audits SET next_check=0')
-  assert audit.tick();assert db.stats()['pending_exports']==1
+  assert audit.tick();assert db.stats()['pending_exports']==2
   SyncService(cfg,db).flush()
   assert db.stats()['pending_exports']==0
   time.sleep(7)
@@ -49,7 +50,7 @@ with tempfile.TemporaryDirectory(prefix='zepp-compose-') as td:
   print('PASS: separate VM nonroot persistent storage, January missing sample repair and restart readback',flush=True)
   gcid=cmd(*base,'ps','-q','zepp-grafana');gip=cmd('docker','inspect',gcid,'--format','{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}');os.environ['NO_PROXY']+=','+gip
   gurl='http://'+gip+':3000';session=requests.Session();session.trust_env=False
-  for _ in range(90):
+  for _ in range(180):
    try:
     r=session.get(gurl+'/api/datasources/uid/zepp-victoriametrics',auth=('admin','isolated-test-password'),timeout=2)
     if r.ok: break

@@ -114,6 +114,23 @@ def test_same_timestamp_mismatch_is_conflict_without_overwrite(tmp_path):
     assert not store.pending()
 
 
+@pytest.mark.parametrize('remote_values,expected_state', [
+    ([97.33333333333333 + 4.5e-11], 'verified'),
+    ([97.33333333333333, 97.33333333333333 + 4.5e-11], 'verified'),
+    ([97.33333333333333 + 1e-6], 'conflict'),
+    ([97.33333333333333, 97.33333333333333 + 1], 'conflict'),
+])
+def test_vm_float_precision_tolerance_checks_every_returned_version(tmp_path,remote_values,expected_state):
+    value=97.33333333333333
+    store,settings,day,row=setup_archive(tmp_path,values=(value,))
+    remote=dict(row,timestamps=[row['timestamps'][0]]*len(remote_values),values=remote_values)
+    worker=auditor(store,settings,Transport(Response([remote])))
+    worker.tick()
+    assert job(store,day)['state']==expected_state
+    assert job(store,day)['conflicts']==(1 if expected_state=='conflict' else 0)
+    assert not store.pending()
+
+
 def test_dedup_15_seconds_checks_only_latest_point_in_bucket(tmp_path):
     store, settings, day, row = setup_archive(tmp_path, values=(60, 70, 80), offsets=[1000, 14000, 16000])
     settings.vm_dedup_seconds = 15
@@ -263,3 +280,11 @@ def test_schedule_honors_interval_and_excludes_telemetry(tmp_path):
     assert job(store, day)['state'] == 'pending'
     with store.connect() as con:
         assert con.execute('SELECT count(*) FROM vm_audits').fetchone()[0] == 1
+
+
+def test_twelve_significant_digit_storage_rounding(tmp_path):
+    store, settings, day, row = setup_archive(tmp_path, values=(1.23456789012345,))
+    remote = dict(row, values=[1.23456789012])
+    worker = auditor(store, settings, Transport(Response([remote])))
+    worker.tick()
+    assert job(store, day)['state'] == 'verified'

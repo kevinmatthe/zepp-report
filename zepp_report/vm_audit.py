@@ -181,7 +181,13 @@ class VMAuditor:
                 found = remote.get(key)
                 if found is None or found[0] < row['timestamp']:
                     missing.append(row)
-                elif found[0] == row['timestamp'] and found[1] != {row['value']}:
+                # VM's numeric encoding can round derived means very slightly.
+                # Every returned version must agree, not merely one duplicate.
+                # VM retains about 12 significant decimal digits (see its key concepts docs).
+                elif found[0] == row['timestamp'] and not all(
+                    math.isclose(value, row['value'], rel_tol=1e-11, abs_tol=1e-12)
+                    for value in found[1]
+                ):
                     conflicts += 1
                 # A later point in the same dedup bucket legitimately replaces ours.
             with self.store.connect() as con:

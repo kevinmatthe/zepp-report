@@ -65,7 +65,8 @@ HTTP 部署默认 `COOKIE_SECURE=false`；HTTPS 反代部署设置 `COOKIE_SECUR
 | `ZEPP_REGION` / `ZEPP_TIMEZONE` | `global` / `Asia/Shanghai` |
 | `VM_IMPORT_URL` | `http://zepp-vm:8428/api/v1/import` |
 | `VM_QUERY_URL` | `http://zepp-vm:8428`，读回核对使用的查询根地址 |
-| `VM_MEMORY_LIMIT` | `512m`，内置 VM 容器内存上限 |
+| `VM_MEMORY_LIMIT` | `1g`，内置 VM 容器内存上限 |
+| `VM_CPU_LIMIT` | `2`，内置 VM CPU 核数上限 |
 | `VM_RETENTION_DAYS` | `3650`，内置 VM 保留期及应用核对边界 |
 | `VM_DEDUP_INTERVAL_SECONDS` | `.001`，与 VM 的 1 毫秒去重设置对应 |
 | `VM_BEARER_TOKEN` | 外部 VM 需要时设置 |
@@ -99,6 +100,7 @@ Web UI → 同步日历 →「补齐未完成 / 历史补数」，选择起止�
 - Token 失效暂停上游采集，已有 VM 投递仍可继续；网络错误与 VM 不可用会退避重试。
 - **HTTP 投递成功不等于持久化已核对。** 应用默认每 30 分钟按配置同步周期读回 VM，比对已有归档样本，缺失后补投并再次核对；同步页区分待投递、等待核对、已核对、冲突和失败。
 - VM 保留期之外的日期标为正常过期，不作为同步失败反复补投；SQLite 原始归档不会因此删除。
+- 核对允许 VM 浮点存储精度造成的极小舍入差（见 [VM 数据模型](https://docs.victoriametrics.com/victoriametrics/keyconcepts/)）；真实值差异仍报告冲突。
 - 相同指标和时间戳的值修订可能与 VM 已有值冲突。不会假设重复导入可以覆盖旧值，也不会自动删除 VM 历史。Web UI 可显示最新归档，而 Grafana 仍可能显示旧值。
 
 需要重建 VM 时，在 Web UI 导出指定日期范围的 JSONL，将其导入保留期足够的**新实例或新租户**，核验后切换查询目标。导出仅包含选定区间，推荐截止昨天；当天汇总仍可能变化。下载文件不会自动清除冲突状态。

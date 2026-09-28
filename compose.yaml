@@ -43,9 +43,11 @@ services:
     image: victoriametrics/victoria-metrics:v1.145.0@sha256:c014fb5a711d38cb24fd0673197592cd1394bb903dbb16aea565620c9c8a3d70
     restart: unless-stopped
     user: "1000:1000"
-    mem_limit: ${VM_MEMORY_LIMIT:-512m}
+    mem_limit: ${VM_MEMORY_LIMIT:-1g}
+    cpus: ${VM_CPU_LIMIT:-2}
     command:
       - -storageDataPath=/storage
+      - -memory.allowedPercent=40
       - -retentionPeriod=${VM_RETENTION_DAYS:-3650}d
       - -dedup.minScrapeInterval=1ms
       - -inmemoryDataFlushInterval=5s

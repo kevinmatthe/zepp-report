@@ -21,7 +21,7 @@ export function renderVmAudit(audit) {
     ? new Intl.DateTimeFormat('zh-CN', { timeZone: state.timezone, dateStyle: 'medium', timeStyle: 'short' }).format(new Date(audit.last_checked * 1000))
     : '尚未核对';
   $('vm-audit-detail').textContent = configured
-    ? `最近核对：${checked} · 缺失 ${number(audit.missing_samples || 0)} 个样本 · 冲突 ${number(audit.conflict_samples || 0)} 个样本 · 已修复 ${number(audit.repaired_samples || 0)} 个样本。缺失数据补投后仍需再次读回核对；失败后会逐步延长等待时间再重试。超出保留期属于正常过期，不计为同步失败。`
+    ? `最近核对：${checked} · 缺失 ${number(audit.missing_samples || 0)} 个样本 · 冲突 ${number(audit.conflict_samples || 0)} 个样本 · 累计安排补投 ${number(audit.repaired_samples || 0)} 个样本。缺失数据补投后仍需再次读回核对；核对失败后会自动重试。超出保留期属于正常过期，不计为同步失败。`
     : '';
   $('vm-audit-error').textContent = configured ? audit.error || '' : '';
 }

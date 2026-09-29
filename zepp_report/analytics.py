@@ -13,11 +13,11 @@ def days_between(start, end):
     return [(a+timedelta(days=i)).isoformat() for i in range((b-a).days+1)]
 
 
-def stats(values):
+def stats(values, percentiles=(10,25,50,75,90)):
     values = sorted(v for x in values if (v := number(x)) is not None)
     n=len(values)
     result={'n':n, 'mean':sum(values)/n if n else None}
-    for p in (10,25,50,75,90):
+    for p in percentiles:
         h=(n-1)*p/100
         lo,hi=math.floor(h),math.ceil(h)
         result['p'+str(p)]=values[lo]+(values[hi]-values[lo])*(h-lo) if n else None
@@ -96,7 +96,7 @@ def metadata(index,rows):
     return {'timezone':index.timezone,'algorithm_version':ALGORITHM_VERSION,'source_revision':revision,'index':index.status()}
 
 
-def profile(index,start,end,metric):
+def profile(index,start,end,metric,full_percentiles=False):
     rows=index.rows(start,end)
     bins={}
     for row in rows:
@@ -115,9 +115,9 @@ def profile(index,start,end,metric):
             eligible[minute]+=1
     buckets=[]
     for minute in range(0,1440,5):
-        stat=stats(bins.get(minute,[]))
+        stat=stats(bins.get(minute,[]),range(101) if full_percentiles else (10,25,50,75,90))
         if stat['n']<5:
-            for key in ('p10','p25','p75','p90'):
+            for key in [k for k in stat if k.startswith('p') and k!='p50']:
                 stat[key]=None
         if stat['n']<2:
             stat['mean']=stat['p50']=None
@@ -241,3 +241,15 @@ def trends(index,start,end,compare='none',grain='day'):
                 from_date=start,to_date=end,grain=grain,today=today,
                 summary_range={'from_date':comparable[0]['date'],'to_date':comparable[-1]['date']} if comparable else None,
                 summary_excludes_today=end>=today,comparison_excludes_today=True,quality='index_pending' if any(r['pending'] for r in rows) else 'observed')
+
+
+def distributions(index,start,end):
+    """Exact integer percentiles of each day's observations; never interpolate cached P25/P75."""
+    rows=index.rows(start,end)
+    ready={row['day'] for row in rows if not row['pending']}
+    days=[]
+    for day in days_between(start,end):
+        detail=index.detail(day) if day in ready else {}
+        days.append(dict(date=day,**{key:stats((x['value'] for x in detail.get(key,[])),range(101))
+                                   for key in ('heart_rate','spo2')}))
+    return dict(metadata(index,rows),days=days)

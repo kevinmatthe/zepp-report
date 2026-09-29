@@ -250,3 +250,20 @@ def test_comparison_series_excludes_today(tmp_path):
     result=analytics.trends(index,yesterday.isoformat(),today.isoformat(),'previous')
     assert len(result['comparison_days'])==1
     assert result['comparison_days'][0]['aligned_date']==yesterday.isoformat()
+
+
+def test_manual_percentile_curve_uses_samples_and_profile_day_weights(tmp_path):
+    assert analytics.stats([10,20,30,40],range(101))['p30']==19
+    store=Store(tmp_path/'pct.db')
+    for i,value in enumerate([10,20,30,40,50],1):
+        save(store,f'2026-09-{i:02}',[value]*5)
+    index=AnalyticsStore(store,'Asia/Shanghai'); index.rebuild_all()
+    curve=analytics.distributions(index,'2026-09-01','2026-09-06')
+    assert curve['days'][0]['heart_rate']['p30']==10
+    assert curve['days'][5]['heart_rate']['p30'] is None
+    result=analytics.profile(index,'2026-09-01','2026-09-05','heart_rate',True)
+    assert result['buckets'][0]['p30']==22
+    assert result['buckets'][1]['p30'] is None
+    short=analytics.profile(index,'2026-09-01','2026-09-02','heart_rate',True)
+    assert short['buckets'][0]['p30'] is None
+    assert short['buckets'][0]['p50']==15

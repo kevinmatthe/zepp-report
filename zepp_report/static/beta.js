@@ -1,4 +1,6 @@
 import './beta.css';
+import {createBandControls,bandSeries} from './beta-bands.js';
+import {createProfile} from './beta-profile.js';
 import * as echarts from 'echarts/core';
 import {LineChart} from 'echarts/charts';
 import {GridComponent,TooltipComponent,LegendComponent,AriaComponent,GraphicComponent,MarkLineComponent,MarkAreaComponent} from 'echarts/components';
@@ -13,8 +15,10 @@ const iconPaths={sleep:'<path d="M20.5 13A8.5 8.5 0 0 1 11 3.5 8.5 8.5 0 1 0 20.
 const icon=key=>`<svg class="metric-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${iconPaths[key]}</svg>`;
 for(const [key] of Object.entries(iconPaths))document.querySelector(`[data-domain="${key}"] h2`).insertAdjacentHTML('afterbegin',icon(key));
 const charts=new Map();
+const bandControls={};
+let profileUI;
 let pollTimer,pollController,pollBusy=false,syncFingerprint='',intervalMinutes=5,session=0;
-function stopPolling(){session++;clearInterval(pollTimer);pollController?.abort();pollBusy=false;syncFingerprint='';$('live-state').dataset.active='false';}
+function stopPolling(){session++;clearInterval(pollTimer);pollController?.abort();pollBusy=false;syncFingerprint='';$('live-state').dataset.active='false';profileUI?.setLive(false);}
 async function pollSync(){
  if(pollBusy||document.hidden||$('main').hidden)return;
  const epoch=session;pollBusy=true;pollController=new AbortController();
@@ -22,7 +26,7 @@ async function pollSync(){
   const status=await api('/api/status','GET',undefined,pollController.signal);
   if(epoch!==session)return;
   const now=Date.now()/1000,presentation=syncPresentation(status,now,intervalMinutes);
-  $('live-state').dataset.active=String(presentation.active);$('live-label').textContent=presentation.label;
+  $('live-state').dataset.active=String(presentation.active);$('live-label').textContent=presentation.label;profileUI?.setLive(presentation.active);
   $('live-time').textContent=status.last_success?'最近成功归档 · '+new Intl.DateTimeFormat('zh-CN',{timeZone:timezone,month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit'}).format(new Date(status.last_success*1000)):'尚无成功归档';
   today=new Intl.DateTimeFormat('sv-SE',{timeZone:timezone}).format(new Date());$('from').max=$('to').max=today;
   const next=JSON.stringify([status.last_success,status.tasks?.done,status.analytics]);
@@ -32,7 +36,7 @@ async function pollSync(){
    if(await load(true)===false)return;
   }
   if(epoch===session)syncFingerprint=next;
- }catch(error){if(epoch===session&&error.name!=='AbortError'){$('live-state').dataset.active='false';$('live-label').textContent='连接中断，等待重试';$('live-time').textContent='无法确认最新归档状态';}}
+ }catch(error){if(epoch===session&&error.name!=='AbortError'){$('live-state').dataset.active='false';$('live-label').textContent='连接中断，等待重试';$('live-time').textContent='无法确认最新归档状态';profileUI?.setLive(false);}}
  finally{if(epoch===session)pollBusy=false;}
 }
 
@@ -49,7 +53,7 @@ function deltaText(value,key){
  return `${value>0?'+':''}${number(value,definitions[key].digits??1)} ${definitions[key].points?'个百分点':definitions[key].unit}`;
 }
 function unauthenticated(){
- stopPolling();controller?.abort();requestId++;current=previous=null;
+ stopPolling();profileUI?.clear();controller?.abort();requestId++;current=previous=null;
  charts.forEach(c=>c.clear());$('results').hidden=true;$('main').hidden=true;$('login-view').hidden=false;
 }
 async function api(path,method='GET',body,signal){
@@ -70,17 +74,28 @@ function chart(key,metric){
  const series=[{name:'本期',type:'line',data,itemStyle:{color:'#c0d79c'},lineStyle:{width:2.5},symbolSize:5,showSymbol:rows.length<=31,connectNulls:false}];
  if(active)series.push({name:baselineLabel(),type:'line',data:previousData,itemStyle:{color:'#d5b17e'},lineStyle:{type:'dashed',width:2},symbolSize:4,showSymbol:rows.length<=31,connectNulls:false});
  if(key==='sleep'){
-  const lower=Number($('sleep-band-low').value),upper=Number($('sleep-band-high').value);
+  const {lower,upper,show}=bandControls.sleep.read();
   const distribution=sleepDistribution(rows,metric,today,lower,upper);
   const meanLabel=metric==='deepShare'?'每夜占比均值':'每夜均值';
   if(distribution.mean!==null)series[0].markLine={silent:true,symbol:'none',label:{show:false},lineStyle:{color:'#edf0e5',type:'dotted',width:1.5},data:[{name:meanLabel,yAxis:distribution.mean}]};
-  if(distribution.low!==null&&$('sleep-band-show').checked)series[0].markArea={silent:true,itemStyle:{color:'#80c5bb',opacity:.13},label:{show:false},data:[[{yAxis:distribution.low},{yAxis:distribution.high}]]};
-  $('sleep-band-summary').textContent=`范围 P${lower}–P${upper} · 调整`;
-  $('sleep-distribution').textContent=`本期${meanLabel} ${valueText(distribution.mean,metric)} · P${lower}–P${upper} ${distribution.low===null?'有效夜数不足 5，暂不显示范围':valueText(distribution.low,metric)+' — '+valueText(distribution.high,metric)} · ${distribution.n} 夜${$('sleep-band-show').checked?'':' · 色带已隐藏'}`;
+  if(distribution.low!==null&&show)series[0].markArea={silent:true,itemStyle:{color:'#80c5bb',opacity:.13},label:{show:false},data:[[{yAxis:distribution.low},{yAxis:distribution.high}]]};
+  $('sleep-distribution').textContent=`本期${meanLabel} ${valueText(distribution.mean,metric)} · P${lower}–P${upper} ${distribution.low===null?'有效夜数不足 5，暂不显示范围':valueText(distribution.low,metric)+' — '+valueText(distribution.high,metric)} · ${distribution.n} 夜${show?'':' · 色带已隐藏'}`;
  }
+ if(key==='heart'||key==='spo2'){
+  const {lower,upper,show}=bandControls[key].read();
+  const values=rows.map(d=>current.distributions?.get(d.date)?.[key==='heart'?'heart_rate':'spo2']||{});
+  if(show)series.push(...bandSeries(values,lower,upper));
+  $(key+'-band-note').textContent=current.bandError?'范围数据读取失败，当前只显示趋势。':`P${lower}–P${upper} · 每日观测分布，缺失处断开${show?'':' · 条带已隐藏'}`;
+ }
+ const band=bandControls[key]?.read();
+ $(key+'-legend').innerHTML=`<span class="legend-current">本期</span>${active?`<span class="legend-previous">${baselineLabel()}</span>`:''}${key==='sleep'?'<span class="legend-mean">每夜均值</span>':''}${band?.show?`<span class="legend-band">P${band.lower}–P${band.upper} ${key==='sleep'?'跨夜分布':'每日分布'}</span>`:''}`;
  let instance=charts.get(key);
  if(!instance){instance=echarts.init($(key+'-chart'));charts.set(key,instance);}
- instance.setOption({animation:!matchMedia('(prefers-reduced-motion: reduce)').matches,animationDuration:200,aria:{enabled:true},legend:{top:0,textStyle:{color:'#bcc8b5'},itemWidth:18},grid:{left:46,right:14,top:40,bottom:34},xAxis:{type:'category',data:labels,axisLabel:{color:'#aebca8',formatter:date=>date.slice(5)},axisLine:{lineStyle:{color:'#40553f'}},axisTick:{show:false}},yAxis:{type:'value',min:metric==='spo2'?bounds=>Number.isFinite(bounds.min)?Math.max(0,Math.floor(bounds.min-1)):0:metric==='heart'?undefined:0,max:metric==='spo2'?bounds=>Number.isFinite(bounds.max)?Math.min(100,Math.ceil(bounds.max+1)):100:metric==='deepShare'?bounds=>Number.isFinite(bounds.max)?Math.min(100,Math.max(10,Math.ceil(bounds.max/10)*10)):100:undefined,scale:metric==='heart',axisLabel:{color:'#aebca8'},splitLine:{lineStyle:{color:'#314333'}}},tooltip:{trigger:'axis',confine:true,backgroundColor:'#263c2d',borderColor:'#657b54',textStyle:{color:'#edf0e5'},formatter:items=>items.map(p=>`${escape(p.seriesName)} · ${escape(p.data?.sourceDate||p.axisValue)}<br><strong>${escape(valueText(p.value==='-'?null:p.value,metric))}</strong>`).join('<br>')},graphic:series.some(s=>s.data.some(v=>v!=null&&(typeof v!=='object'||v.value!=null)))?[]:[{type:'text',left:'center',top:'middle',style:{text:'这段时间暂无观测',fill:'#afbdab',fontSize:14}}],series},true);
+ instance.setOption({animation:!matchMedia('(prefers-reduced-motion: reduce)').matches,animationDuration:200,aria:{enabled:true},legend:{show:false},grid:{left:46,right:14,top:16,bottom:34},xAxis:{type:'category',data:labels,axisLabel:{color:'#aebca8',formatter:date=>date.slice(5)},axisLine:{lineStyle:{color:'#40553f'}},axisTick:{show:false}},yAxis:{type:'value',min:metric==='spo2'?bounds=>Number.isFinite(bounds.min)?Math.max(0,Math.floor(bounds.min-1)):0:metric==='heart'?undefined:0,max:metric==='spo2'?bounds=>Number.isFinite(bounds.max)?Math.min(100,Math.ceil(bounds.max+1)):100:metric==='deepShare'?bounds=>Number.isFinite(bounds.max)?Math.min(100,Math.max(10,Math.ceil(bounds.max/10)*10)):100:undefined,scale:metric==='heart',axisLabel:{color:'#aebca8'},splitLine:{lineStyle:{color:'#314333'}}},tooltip:{trigger:'axis',confine:true,backgroundColor:'#263c2d',borderColor:'#657b54',textStyle:{color:'#edf0e5'},formatter:items=>{
+ const lines=items.filter(p=>series[p.seriesIndex]?.tooltip?.show!==false).map(p=>`${escape(p.seriesName)} · ${escape(p.data?.sourceDate||p.axisValue)}<br><strong>${escape(valueText(p.value==='-'?null:p.value,metric))}</strong>`);
+ if(band?.show&&(key==='heart'||key==='spo2')){const row=current.distributions?.get(items[0]?.axisValue)?.[key==='heart'?'heart_rate':'spo2'];lines.push(`P${band.lower}–P${band.upper} · ${escape(valueText(row?.['p'+band.lower]??null,metric))} — ${escape(valueText(row?.['p'+band.upper]??null,metric))}`);}
+ return lines.join('<br>');
+ }},graphic:series.some(s=>s.data.some(v=>v!=null&&(typeof v!=='object'||v.value!=null)))?[]:[{type:'text',left:'center',top:'middle',style:{text:'这段时间暂无观测',fill:'#afbdab',fontSize:14}}],series},true);
 }
 function table(domain,keys,summary,old){
  const rows=keys.map(key=>{
@@ -119,7 +134,11 @@ async function load(background=false){
  if(!background)$('results').hidden=true;$('status').className='';if(!background)$('status').textContent='正在读取两期档案…';$('results').setAttribute('aria-busy','true');
  const p=new URLSearchParams({from_date:from,to_date:to,compare:mode,grain:'day'});
  try{
-  const next=await api('/api/analytics/trends?'+p,'GET',undefined,controller.signal);
+  const [next,distribution]=await Promise.all([
+   api('/api/analytics/trends?'+p,'GET',undefined,controller.signal),
+   api('/api/analytics/distributions?'+new URLSearchParams({from_date:from,to_date:to}),'GET',undefined,controller.signal).catch(error=>{if(error.name==='AbortError'||$('main').hidden)throw error;return null;})
+  ]);
+  next.distributions=new Map((distribution?.days||[]).map(d=>[d.date,d]));next.bandError=!distribution;
   let base=null;
   if(next.comparison&&mode!=='none'){
    const q=new URLSearchParams({...next.comparison,compare:'none',grain:'day'});
@@ -131,6 +150,7 @@ async function load(background=false){
   const oldLink='/?'+new URLSearchParams({from,to,compare:mode});
   document.querySelectorAll('.old-link,.compare-old').forEach(a=>a.href=oldLink);
   render();
+  profileUI.setRange(from,to);
   $('status').textContent=next.quality==='index_pending'?'部分日期的分析索引正在重建，数据可能尚不完整。':to===today?'今天的数据仍在更新；汇总与对比仅使用已结束日期。':'仅比较完整日期。空白不计为零，覆盖天数见各指标。';
   return true;
  }catch(error){if(error.name!=='AbortError'&&id===requestId){if(!background)$('results').hidden=true;$('status').className='error';$('status').textContent=background?'自动刷新失败，当前为上次读取的记录。':error.message;}return false;}
@@ -151,13 +171,9 @@ $('range-form').onsubmit=event=>{event.preventDefault();load();};$('compare').on
 for(const button of document.querySelectorAll('[data-days]'))button.onclick=()=>{$('from').value=shiftDate(today,-Number(button.dataset.days));$('to').value=shiftDate(today,-1);load();};
 for(const button of document.querySelectorAll('[data-sleep]'))button.onclick=()=>{sleepMetric=button.dataset.sleep;render();};
 $('logout').onclick=async()=>{try{await api('/api/logout','POST',{});unauthenticated();}catch(error){$('status').textContent=error.message;}};
-function syncSleepBandControls(){
- for(const option of $('sleep-band-low').options)option.disabled=Number(option.value)>=Number($('sleep-band-high').value);
- for(const option of $('sleep-band-high').options)option.disabled=Number(option.value)<=Number($('sleep-band-low').value);
-}
-for(const id of ['sleep-band-low','sleep-band-high','sleep-band-show'])$(id).onchange=()=>{syncSleepBandControls();render();};
-syncSleepBandControls();
+for(const [key,label] of [['sleep','睡眠'],['heart','心率'],['spo2','血氧']])bandControls[key]=createBandControls($(key+'-band-controls'),key,label,()=>{if(current)chart(key,key==='sleep'?sleepMetric:key);});
+profileUI=createProfile({api,echarts,getToday:()=>today,getTimezone:()=>timezone});
 $('include-today').onclick=()=>{$('from').value=shiftDate(today,-6);$('to').value=today;load();};
-document.addEventListener('visibilitychange',()=>{if(document.hidden){$('live-state').dataset.active='false';}else pollSync();});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){$('live-state').dataset.active='false';profileUI.setLive(false);}else pollSync();});
 new ResizeObserver(()=>charts.forEach(c=>c.resize())).observe(document.documentElement);
 start();

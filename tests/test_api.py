@@ -140,3 +140,15 @@ def test_beta_page_is_separate_and_old_home_is_preserved(client):
     assert '/static/dist/beta.js' not in old.text
     assert '返回旧版' in beta.text
     assert client.get('/api/analytics/trends?from_date=2026-09-01&to_date=2026-09-02').status_code==401
+
+
+def test_beta_manual_percentiles_are_authenticated_and_cache_revalidated(client):
+    url='/api/analytics/distributions?from_date=2026-09-01&to_date=2026-09-02'
+    assert client.get(url).status_code==401
+    login(client)
+    result=client.get(url)
+    assert result.status_code==200
+    assert result.json()['days'][0]['heart_rate']['p35'] is None
+    assert client.get('/api/analytics/profile?from_date=2026-09-01&to_date=2026-09-02&full_percentiles=true').json()['buckets'][0]['p35'] is None
+    for path in ['/','/beta','/static/beta-bands.js']:
+        assert client.get(path).headers['cache-control']=='no-cache'

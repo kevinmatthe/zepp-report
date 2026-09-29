@@ -20,10 +20,13 @@ const path=require('node:path');
    if(p==='/api/settings')return reply({timezone:'Asia/Shanghai'});
    if(p==='/api/status')return statusFail?reply({detail:'offline'},503):reply({configured:true,worker_alive:!offline,last_success:archived,tasks:{done:1}});
    requests.push(url.search);
+   if(p.startsWith('/api/days/'))return reply({date:p.split('/').at(-1),profiles:Object.fromEntries([['heart_rate',72],['spo2',98],['stress',25]].map(([key,value])=>[key,Array.from({length:288},(_,i)=>({minute:i*5,value:value+Math.sin(i/12)*(key==='spo2'?.4:5)}))])),heart_rate:[{time:Date.now(),value:72}],spo2:[{time:Date.now(),value:98}]});
+   if(p==='/api/analytics/profile')return reply({buckets:Array.from({length:288},(_,i)=>({minute:i*5,n:7,...Object.fromEntries(Array.from({length:101},(_,p)=>['p'+p,(url.searchParams.get('metric')==='spo2'?98+(p-50)/50:70+(p-50)/4)+Math.sin(i/12)*(url.searchParams.get('metric')==='spo2'?.3:4)]))}))});
    if(fail)return reply({detail:'测试读取失败'},500);
    const from=url.searchParams.get('from_date'),to=url.searchParams.get('to_date'),compare=url.searchParams.get('compare');
    const count=Math.round((Date.parse(to)-Date.parse(from))/86400000)+1;
    const shift=(s,n)=>new Date(Date.parse(s+'T12:00:00Z')+n*86400000).toISOString().slice(0,10);
+   if(p==='/api/analytics/distributions')return reply({days:Array.from({length:count},(_,i)=>({date:shift(from,i),heart_rate:Object.fromEntries(Array.from({length:101},(_,p)=>['p'+p,68+Math.sin(i)*3+(p-50)/4])),spo2:Object.fromEntries(Array.from({length:101},(_,p)=>['p'+p,98+(p-50)/50]))}))});
    const previous=from<'2026-09-01';
    const comparison=compare==='none'?null:compare==='year'?{from_date:'2025'+from.slice(4),to_date:'2025'+to.slice(4)}:{from_date:shift(from,-count),to_date:shift(from,-1)};
    if(from==='2026-09-03')await new Promise(r=>setTimeout(r,250));
@@ -36,23 +39,37 @@ const path=require('node:path');
   assert.equal(await page.locator('#metrics .metric').count(),4);
   await page.waitForFunction(()=>document.querySelector('#live-state').dataset.active==='true');
   assert.equal(await page.locator('#metrics .metric-icon').count(),4);
-  await page.locator('#sleep-band-summary').click();
-  await page.locator('#sleep-band-low').selectOption('50');
+  await page.locator('#sleep-band-low').fill('50');await page.locator('#sleep-band-low').press('Tab');
   await page.waitForFunction(()=>document.querySelector('#sleep-distribution').textContent.includes('P50–P75'));
-  await page.locator('#sleep-band-high').selectOption('90');
+  await page.locator('#sleep-band-high').fill('90');await page.locator('#sleep-band-high').press('Tab');
   assert.ok((await page.locator('#sleep-distribution').innerText()).includes('P50–P90'));
-  assert.equal(await page.locator('#sleep-band-low option[value="75"]').isDisabled(),false);
-  await page.locator('#sleep-band-low').selectOption('25');
+  assert.equal(await page.locator('#sleep-band-low').getAttribute('max'),'85');
+  await page.locator('#sleep-band-low').fill('25');await page.locator('#sleep-band-low').press('Tab');
   assert.ok((await page.locator('#sleep-distribution').innerText()).includes('P25–P90'));
-  await page.locator('#sleep-band-high').selectOption('75');
+  await page.locator('#sleep-band-high').fill('75');await page.locator('#sleep-band-high').press('Tab');
   await page.locator('#sleep-band-show').uncheck();
   assert.ok((await page.locator('#sleep-distribution').innerText()).includes('色带已隐藏'));
   await page.locator('#sleep-band-show').check();
-  await page.locator('#sleep-band-summary').click();
   await page.emulateMedia({reducedMotion:'reduce'});
   assert.equal(await page.locator('.breathing-dot').evaluate(e=>getComputedStyle(e).animationName),'none');
   await page.emulateMedia({reducedMotion:'no-preference'});
 
+  await page.locator('#profile-chart canvas').waitFor();
+  for(const key of ['heart','spo2','profile']){
+   await page.locator(`#${key}-band-low`).fill('50');await page.locator(`#${key}-band-low`).press('Tab');
+   assert.equal(await page.locator(`#${key}-band-label`).innerText(),'P50–P75');
+   await page.locator(`#${key}-band-high-range`).focus();await page.keyboard.press('ArrowRight');
+   assert.equal(await page.locator(`#${key}-band-label`).innerText(),'P50–P80');
+   await page.locator(`#${key}-band-low`).fill('25');await page.locator(`#${key}-band-low`).press('Tab');await page.locator(`#${key}-band-high`).fill('90');await page.locator(`#${key}-band-high`).press('Tab');
+   assert.ok((await page.locator(`#${key}-legend`).innerText()).includes('P25–P90'));
+   await page.locator(`#${key}-band-low`).fill('95');await page.locator(`#${key}-band-low`).press('Tab');
+   assert.equal(await page.locator(`#${key}-band-low`).inputValue(),'85','bounds cannot cross');
+   await page.locator(`#${key}-band-controls [data-preset-band="25,75"]`).click();
+  }
+  await page.locator('#profile-prev').click();
+  await page.waitForFunction(()=>document.querySelector('#profile-status').textContent.startsWith('2026-09-27'));
+  await page.locator('#profile-metric').selectOption('spo2');
+  await page.waitForFunction(()=>document.querySelector('#profile-status').textContent.includes('2026-09-27'));
   assert.ok((await page.locator('[data-stat="deepShare"] .difference').innerText()).includes('+3 个百分点'));
   assert.ok((await page.locator('[data-stat="deepMinutes"] .difference').innerText()).includes('+12 分钟'));
   assert.ok((await page.locator('#periods').innerText()).includes('2026-08-04'));
@@ -76,6 +93,18 @@ const path=require('node:path');
   for(const width of [375,414,768,1024,1440]){
    await page.setViewportSize({width,height:1000});await page.waitForTimeout(200);
    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'overflow '+width);
+   await page.locator('#heart-band-low-range').scrollIntoViewIfNeeded();
+   const thumb=await page.locator('#heart-band-low-range').boundingBox();
+   const radius=width<=500?13:11;
+   await page.mouse.move(thumb.x+radius+(thumb.width-2*radius)*.25,thumb.y+thumb.height/2);
+   await page.mouse.down();await page.mouse.move(thumb.x+radius+(thumb.width-2*radius)*.5,thumb.y+thumb.height/2,{steps:5});await page.mouse.up();
+   assert.equal(await page.locator('#heart-band-label').innerText(),'P50–P75','pointer drag '+width);
+   await page.locator('#heart-band-controls [data-preset-band="25,75"]').click();
+   for(const key of ['sleep','heart','spo2']){
+    const legend=await page.locator(`#${key}-legend`).boundingBox(),chart=await page.locator(`#${key}-chart`).boundingBox();
+    assert.ok(legend.y+legend.height<=chart.y+1,'legend outside plot '+key);
+   }
+
    const heights=await page.locator('.metric').evaluateAll(es=>es.map(e=>e.getBoundingClientRect().height));
    assert.ok(Math.max(...heights)-Math.min(...heights)<2,'equal-weight cards');
    await page.screenshot({path:`/tmp/zepp-beta-${width}.png`,fullPage:true});

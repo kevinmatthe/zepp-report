@@ -104,6 +104,8 @@ def create_app(data_dir=None,environ=None,start_worker=True):
         response.headers['Content-Security-Policy']="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
         if path.startswith('/api/'):
             response.headers['Cache-Control']='no-store'
+        elif path in ('/','/beta','/beta/') or path.startswith('/static/'):
+            response.headers['Cache-Control']='no-cache'
         return response
 
     def validate_range(start,end,limit=366):
@@ -231,10 +233,15 @@ def create_app(data_dir=None,environ=None,start_worker=True):
         start,end=validate_range(from_date,to_date)
         return analytics.trends(service.analytics,start,end,compare,grain)
 
-    @app.get('/api/analytics/profile')
-    def get_profile(from_date:date,to_date:date,metric:Literal['heart_rate','stress','spo2']='heart_rate'):
+    @app.get('/api/analytics/distributions')
+    def get_distributions(from_date:date,to_date:date):
         start,end=validate_range(from_date,to_date)
-        return analytics.profile(service.analytics,start,end,metric)
+        return analytics.distributions(service.analytics,start,end)
+
+    @app.get('/api/analytics/profile')
+    def get_profile(from_date:date,to_date:date,metric:Literal['heart_rate','stress','spo2']='heart_rate',full_percentiles:bool=False):
+        start,end=validate_range(from_date,to_date)
+        return analytics.profile(service.analytics,start,end,metric,full_percentiles)
 
     @app.get('/api/days/{day}')
     def get_day(day:date):

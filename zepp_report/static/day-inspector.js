@@ -2,7 +2,7 @@ import {renderSleepNight} from "./sleep-night.js";
 import {renderRawDay} from "./raw-day.js";
 import { api } from "./api.js";
 import { $, state, query, addDays, persist, escape, number } from "./state.js";
-import { plot, bands } from "./trend-charts.js";
+import { plot, bands, selectedBand } from "./trend-charts.js";
 import { clampDay, createDayCache } from "./frontend-utils.js";
 const dayCache = createDayCache((day) => api("/api/days/" + day));
 let baseline = [], request = 0, baselineRequest = 0;
@@ -56,10 +56,11 @@ async function showDay(day) {
   const unit=metric==="spo2"?"%":metric==="heart_rate"?" bpm":"";
   const map = new Map(points.map((p) => [p.minute, p.value]));
   const rows = baseline.map((b) => ({ ...b, p25: b.n >= 5 ? b.p25 : null, p75: b.n >= 5 ? b.p75 : null, p10: b.n >= 5 ? b.p10 : null, p90: b.n >= 5 ? b.p90 : null, p50: b.n >= 2 ? b.p50 : null, mean: b.n >= 2 ? b.mean : null }));
-  plot("profile-chart", rows.map((r) => clock(r.minute)), [...bands(rows, null, $("statistic").value, $("band").value === "outer"), { name: day, type: "line", data: rows.map((r) => map.get(r.minute) ?? null), itemStyle: { color: "#e1b676" }, lineStyle: { width: 2 } }], null, { tooltip: { trigger: "axis", confine: true, formatter: (params) => {
+  const [lo,hi]=selectedBand();
+  plot("profile-chart", rows.map((r) => clock(r.minute)), [...bands(rows, null, $("statistic").value, [lo,hi]), { name: day, type: "line", data: rows.map((r) => map.get(r.minute) ?? null), itemStyle: { color: "#e1b676" }, lineStyle: { width: 2 } }], null, { tooltip: { trigger: "axis", confine: true, formatter: (params) => {
     const i = params[0]?.dataIndex, b = rows[i];
     if (!b) return "";
-    return `${clock(b.minute)} · 基于 ${b.n} 天<br>中位数 ${number(b.p50, 1)}${unit}<br>P25–P75 ${number(b.p25, 1)}–${number(b.p75, 1)}${unit}<br>${day} ${number(map.get(b.minute), 1)}${unit}`;
+    return `${clock(b.minute)} · 基于 ${b.n} 天<br>中位数 ${number(b.p50, 1)}${unit}<br>${lo.toUpperCase()}–${hi.toUpperCase()} ${number(b.n>=5?b[lo]:null, 1)}–${number(b.n>=5?b[hi]:null, 1)}${unit}<br>${day} ${number(map.get(b.minute), 1)}${unit}`;
   } } });
   const coverage = Object.entries(detail.coverage || {}).map(([key, c]) => `${({heart_rate:"心率",stress:"压力",spo2:"血氧"})[key]||key}：观测 ${number(c.observed_minutes)} / ${number(c.expected_minutes)} 分钟，${number(c.n)} 个样本`).join(" · ");
   $('day-detail').innerHTML=`<h3>${escape(day)} <span class="muted">· 单日记录</span></h3><p>步数 ${number(detail.summary?.steps)} · 活动片段 ${detail.activities?.length||0} 段</p><p class="small muted">${escape(coverage)}</p><section id="sleep-night" class="sleep-night"></section>`;

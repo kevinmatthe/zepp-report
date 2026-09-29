@@ -23,10 +23,11 @@ function plot(id, x, series, onClick, extra = {}) {
   return c;
 }
 const line = (name, data, color) => ({ name, type: "line", data, ...color ? { itemStyle: { color } } : {} });
-function bands(rows, metric, stat = "p50", outer = false) {
-  const lo = outer ? "p10" : "p25", hi = outer ? "p90" : "p75";
+const selectedBand=()=>[$('band-low').value,$('band-high').value];
+function bands(rows, metric, stat = "p50", bounds = ['p25','p75']) {
+  const [lo,hi]=bounds;
   const values = rows.map((r) => metric ? r[metric] || {} : r);
-  return [{ name: "", type: "line", stack: "band", data: values.map((v) => v[lo] ?? null), lineStyle: { opacity: 0 }, areaStyle: { opacity: 0 }, itemStyle: { opacity: 0 }, silent: true, tooltip: { show: false } }, { name: outer ? "P10–P90" : "P25–P75", type: "line", stack: "band", data: values.map((v) => v[lo] != null && v[hi] != null ? v[hi] - v[lo] : null), lineStyle: { opacity: 0 }, areaStyle: { color: "#80c5bb", opacity: 0.18 }, itemStyle: { opacity: 0 }, tooltip: { show: false } }, line(stat === "mean" ? "均值" : "中位数", values.map((v) => v[stat] ?? null), "#80c5bb")];
+  return [{ name: "", type: "line", stack: "band", data: values.map((v) => v[lo] ?? null), lineStyle: { opacity: 0 }, areaStyle: { opacity: 0 }, itemStyle: { opacity: 0 }, silent: true, tooltip: { show: false } }, { name: `${lo.toUpperCase()}–${hi.toUpperCase()}`, type: "line", stack: "band", data: values.map((v) => v[lo] != null && v[hi] != null ? v[hi] - v[lo] : null), lineStyle: { opacity: 0 }, areaStyle: { color: "#80c5bb", opacity: 0.18 }, itemStyle: { opacity: 0 }, tooltip: { show: false } }, line(stat === "mean" ? "均值" : "中位数", values.map((v) => v[stat] ?? null), "#80c5bb")];
 }
 function renderTrends(data, onDay) {
   const days = data.days || [], x = days.map((d) => d.date), vals = (k) => days.map((d) => d.summary?.[k] ?? null);
@@ -65,10 +66,10 @@ function renderTrends(data, onDay) {
   const minutes = overview.workout_minutes, frequency = overview.workout_count, distance = overview.running_distance_meters;
   $("activity-summary").textContent = source === "workout_activity" ? `运动 ${number(frequency?.value)} 次 · 活动 ${number(minutes?.value, 1)} 分钟 · 有记录日均 ${number(minutes?.day_mean, 1)} 分钟` : `步行 ${number(overview.walking_minutes?.value, 1)} 分钟 · 跑步 ${number(overview.running_minutes?.value, 1)} 分钟 · 跑步距离 ${number(distance?.value == null ? null : distance.value / 1e3, 2)} km（来自日汇总，不与片段相加）`;
   $("steps-unit").textContent = data.grain === "week" ? "每周步数合计" : data.grain === "month" ? "每月步数合计" : "步数 · 7 日均线（按已观测日）";
-  const stat = $("statistic").value, outer = $("band").value === "outer";
-  comparePlot("heart-chart", [...bands(days, "heart_rate", stat, outer), line("静息心率", vals("resting_hr"), "#a6a1d7")], [[stat==='mean'?'均值':'中位数',d=>d.heart_rate?.[stat]]]);
-  comparePlot("stress-chart", bands(days, "stress", stat, outer), [[stat==='mean'?'均值':'中位数',d=>d.stress?.[stat]]]);
-  comparePlot('spo2-chart',bands(days,'spo2',stat,outer),[[stat==='mean'?'均值':'中位数',d=>d.spo2?.[stat]]]);
+  const stat = $("statistic").value, bounds = selectedBand();
+  comparePlot("heart-chart", [...bands(days, "heart_rate", stat, bounds), line("静息心率", vals("resting_hr"), "#a6a1d7")], [[stat==='mean'?'均值':'中位数',d=>d.heart_rate?.[stat]]]);
+  comparePlot("stress-chart", bands(days, "stress", stat, bounds), [[stat==='mean'?'均值':'中位数',d=>d.stress?.[stat]]]);
+  comparePlot('spo2-chart',bands(days,'spo2',stat,bounds),[[stat==='mean'?'均值':'中位数',d=>d.spo2?.[stat]]]);
   const oxygen=data.summary?.spo2_avg;
   $('spo2-value').textContent=number(oxygen?.value,1);
   $('spo2-note').textContent=`日均血氧按有记录日期平均 · 有效 ${oxygen?.valid_days??0} / ${oxygen?.total_days??days.length} 天。曲线为${stat==='mean'?'每日均值':'每日中位数'}，阴影为样本分布；缺失不补零。`;
@@ -86,6 +87,7 @@ function renderTrends(data, onDay) {
 }
 export {
   bands,
+  selectedBand,
   plot,
   renderTrends,
   resize

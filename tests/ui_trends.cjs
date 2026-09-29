@@ -33,6 +33,14 @@ const path = require("node:path");
     });
     await page.goto("http://zepp.test/?from=2026-09-01&to=2026-09-28");
     await page.locator("#profile-chart canvas").waitFor();
+    await page.locator('#band-low').selectOption('p50');
+    assert.ok((await page.locator('#band-note').innerText()).includes('P50–P75'));
+    await page.locator('#band-high').selectOption('p90');
+    await page.locator('#band-low').selectOption('p25');
+    assert.ok((await page.locator('#band-note').innerText()).includes('P25–P90'));
+    await page.locator('#band-high').selectOption('p75');
+    assert.equal(await page.locator('#band-low option[value="p75"]').evaluate(e=>e.disabled),true);
+
     assert.ok((await page.locator(".metric-value").first().innerText()).includes("7,500"), "daily card must use day_mean, never total");
     assert.equal(await page.locator('[data-metric="steps-daily"] .metric-change-value').innerText(),'↑ +15.4%');
     assert.ok((await page.locator('[data-metric="steps-daily"] .metric-baseline').innerText()).includes('6,500'));

@@ -177,7 +177,15 @@ $("grain").onchange = (e) => {
   persist();
   action(null, load);
 };
-for (const id of ["statistic", "band", "training-metric", "sleep-metric", "activity-source"]) $(id).onchange = () => {
+function syncBandControls(){
+  const low=$('band-low'),high=$('band-high');
+  for(const option of low.options)option.disabled=Number(option.value.slice(1))>=Number(high.value.slice(1));
+  for(const option of high.options)option.disabled=Number(option.value.slice(1))<=Number(low.value.slice(1));
+  $('band-note').textContent=`${low.value.toUpperCase()}–${high.value.toUpperCase()} · 同步应用于心率、压力、血氧和日内节律。`;
+}
+syncBandControls();
+for (const id of ["statistic", "band-low", "band-high", "training-metric", "sleep-metric", "activity-source"]) $(id).onchange = () => {
+  syncBandControls();
   if (data) renderTrends(data, openDay);
   action(null, loadProfile);
 };

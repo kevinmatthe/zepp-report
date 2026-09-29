@@ -23,3 +23,21 @@ export function change(current,previous){
  return {delta,percent:delta!==null&&previous>0?delta/previous*100:null};
 }
 export const shiftDate=(date,offset)=>new Date(Date.parse(date+'T12:00:00Z')+offset*86400000).toISOString().slice(0,10);
+
+export function syncPresentation(status,now,intervalMinutes=5){
+ if(!status?.configured)return {active:false,label:'等待连接 Zepp'};
+ if(status.auth_required)return {active:false,label:'Zepp 授权待更新'};
+ if(!status.worker_alive)return {active:false,label:'同步服务离线'};
+ if(status.worker_error)return {active:false,label:'同步遇到问题'};
+ const age=now-status.last_success;
+ const recent=Number.isFinite(status.last_success)&&status.last_success>0&&age>=0&&age<=Math.max(5,intervalMinutes)*120+60;
+ return {active:recent,label:recent?'自动同步在线':status.last_success?'等待新的归档':'等待首次归档'};
+}
+
+export function sleepDistribution(days,key,today,lower=25,upper=75){
+ if(!valid(lower)||!valid(upper)||lower<0||upper>100||lower>=upper)throw new RangeError('分位下界必须小于上界');
+ const values=days.filter(day=>day.date<today).map(day=>metricValue(day,key)).filter(valid).sort((a,b)=>a-b);
+ const n=values.length;
+ const quantile=p=>{const index=(n-1)*p/100,lo=Math.floor(index),hi=Math.ceil(index);return values[lo]+(values[hi]-values[lo])*(index-lo);};
+ return {n,mean:n?values.reduce((a,b)=>a+b,0)/n:null,low:n>=5?quantile(lower):null,high:n>=5?quantile(upper):null};
+}

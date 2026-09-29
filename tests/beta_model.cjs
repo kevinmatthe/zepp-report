@@ -8,7 +8,7 @@ const {join}=require('node:path');
  try{
   const outfile=join(dir,'model.mjs');
   buildSync({entryPoints:['zepp_report/static/beta-model.js'],bundle:true,format:'esm',platform:'node',outfile});
-  const {summarizePeriod,metricValue,change}=await import(outfile);
+  const {summarizePeriod,metricValue,change,syncPresentation,sleepDistribution}=await import(outfile);
   const days=[
    {date:'2026-09-01',summary:{actual_sleep_minutes:400,sleep_deep_minutes:100,steps:0},heart_rate:{p50:60}},
    {date:'2026-09-02',summary:{actual_sleep_minutes:200,sleep_deep_minutes:100,steps:200},heart_rate:{p50:80}},
@@ -33,6 +33,19 @@ const {join}=require('node:path');
   assert.deepEqual(change(20,0),{delta:20,percent:null});
   assert.deepEqual(change(null,17),{delta:null,percent:null});
   assert.equal(summarizePeriod([]).deepShare.value,null);
+  const nights=Array.from({length:5},(_,i)=>({date:`2026-09-0${i+1}`,summary:{actual_sleep_minutes:200+i*100,sleep_deep_minutes:20+i*20}}));
+  assert.deepEqual(sleepDistribution(nights,'deepMinutes','2026-09-06',25,75),{n:5,mean:60,low:40,high:80});
+  assert.deepEqual(sleepDistribution(nights,'deepMinutes','2026-09-06',50,90),{n:5,mean:60,low:60,high:92});
+  assert.equal(sleepDistribution(nights,'deepMinutes','2026-09-05',25,75).low,null,'unfinished day excluded and fewer than five nights suppress band');
+  assert.equal(sleepDistribution([],'sleep','2026-09-06',25,75).mean,null);
+  assert.throws(()=>sleepDistribution(nights,'sleep','2026-09-06',75,50));
+  const live={configured:true,worker_alive:true,last_success:990,tasks:{}};
+  assert.equal(syncPresentation(live,1000,5).active,true);
+  assert.equal(syncPresentation(live,2000,5).active,false,'stale archive stops breathing');
+  assert.equal(syncPresentation({...live,auth_required:true},1000,5).active,false);
+  assert.equal(syncPresentation({...live,worker_alive:false},1000,5).active,false);
+  assert.equal(syncPresentation({...live,worker_error:'failed'},1000,5).active,false);
+  assert.equal(syncPresentation({...live,last_success:null},1000,5).active,false);
   console.log('Beta statistics: paired sleep ratios, coverage, zeros, missing data and incomplete days passed');
  }finally{rmSync(dir,{recursive:true,force:true});}
 })().catch(e=>{console.error(e);process.exit(1)});
